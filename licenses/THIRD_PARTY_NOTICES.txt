@@ -1,0 +1,10 @@
+ChromaLyric includes third-party software components:
+
+1. Qt / PySide6
+   Licensed under the GNU Lesser General Public License v3 (LGPL-3.0).
+   Source code available at:
+   https://code.qt.io/
+   https://pyside.org/
+
+These components are dynamically linked and may be replaced
+in accordance with the terms of the LGPL.

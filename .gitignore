@@ -1,0 +1,67 @@
+########################################
+# 🔒 PROPRIETARY SOURCE (DO NOT COMMIT)
+########################################
+
+# Main application source
+app.py
+
+# Any other Python source files (uncomment if needed)
+# *.py
+
+########################################
+# 🐍 Python artifacts
+########################################
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+
+########################################
+# 🧱 PyInstaller build artifacts
+########################################
+
+build/
+dist/
+*.spec
+
+########################################
+# 🧪 Virtual environments
+########################################
+
+.venv/
+venv/
+env/
+
+########################################
+# 💻 IDE / Editor files
+########################################
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+########################################
+# 🖥 OS junk
+########################################
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+########################################
+# 📦 Installer outputs (optional but recommended)
+########################################
+
+release/
+*.exe
+*.msi
+
+########################################
+# 📦 Excess intaller files
+########################################
+
+*.bat
+*.iss
