@@ -1,4 +1,4 @@
-![Release](https://img.shields.io/github/v/release/mattjoykaraoke/ChromaLyric)
+[![Download Latest Release](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/mattjoykaraoke/ChromaLyric/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Built with Python](https://img.shields.io/badge/Built%20with-Python-3776AB?logo=python&logoColor=white)
 ![Qt](https://img.shields.io/badge/Qt-PySide6-green)
@@ -104,3 +104,7 @@ It exists to:
 • Make color experimentation fast
 • Provide visual confidence before rendering
 • Remove friction from karaoke styling workflows
+__________________________________________________________________________________________
+📸 Screenshot
+
+![ChromaLyric Screenshot](assets/screenshot.png)
