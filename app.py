@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -716,11 +717,77 @@ class MainWindow(QMainWindow):
         self.sw_base.clicked.connect(lambda: self.pick_color("SecondaryColour"))
         self.sw_outline.clicked.connect(lambda: self.pick_color("OutlineColour"))
 
+        # Outline thickness (Style 'Outline') - compact control to the right of outline swatch
+        self.outline_spin = QSpinBox()
+        self.outline_spin.setRange(0, 20)
+        self.outline_spin.setSingleStep(1)
+        self.outline_spin.setFixedWidth(60)
+        self.outline_spin.valueChanged.connect(self.on_outline_changed)
+
+        # Shadow controls (Style 'Shadow' + 'BackColour' alpha/color)
+        self.shadow_group = QGroupBox("Shadow")
+        self.shadow_group.setCheckable(True)
+        self.shadow_group.setChecked(False)
+        self.shadow_group.toggled.connect(self.on_shadow_group_toggled)
+
+        self.shadow_distance = QSpinBox()
+        self.shadow_distance.setRange(0, 20)
+        self.shadow_distance.setSingleStep(1)
+        self.shadow_distance.setFixedWidth(60)
+        self.shadow_distance.valueChanged.connect(self.on_shadow_distance_changed)
+
+        # Opacity in percent (0–100) -> mapped to BackColour alpha (0–255)
+        self.shadow_opacity = QSlider(Qt.Horizontal)
+        self.shadow_opacity.setRange(0, 100)
+        self.shadow_opacity.valueChanged.connect(self.on_shadow_opacity_changed)
+
+        self.sw_shadow = SwatchControl("Shadow (BackColour)")
+        self.sw_shadow.clicked.connect(lambda: self.pick_color("BackColour"))
+
+        # Collapsible body for shadow options
+        self.shadow_body = QWidget()
+        shadow_body_layout = QVBoxLayout()
+        shadow_body_layout.setContentsMargins(8, 8, 8, 8)
+        shadow_body_layout.setSpacing(6)
+
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel("Distance"))
+        row1.addStretch(1)
+        row1.addWidget(self.shadow_distance)
+        shadow_body_layout.addLayout(row1)
+
+        shadow_body_layout.addWidget(QLabel("Opacity"))
+        shadow_body_layout.addWidget(self.shadow_opacity)
+        shadow_body_layout.addWidget(self.sw_shadow)
+
+        self.shadow_body.setLayout(shadow_body_layout)
+        self.shadow_body.setVisible(False)
+        self.shadow_distance.setEnabled(False)
+        self.shadow_opacity.setEnabled(False)
+        self.sw_shadow.setEnabled(False)
+
+        shadow_group_layout = QVBoxLayout()
+        shadow_group_layout.setContentsMargins(8, 8, 8, 8)
+        shadow_group_layout.addWidget(self.shadow_body)
+        self.shadow_group.setLayout(shadow_group_layout)
+
         colors_box = QGroupBox("Style Colors")
         colors_layout = QHBoxLayout()
         colors_layout.addWidget(self.sw_highlight)
         colors_layout.addWidget(self.sw_base)
-        colors_layout.addWidget(self.sw_outline)
+
+        # Outline swatch + thickness (to the right, compact)
+        outline_row = QHBoxLayout()
+        outline_row.setContentsMargins(0, 0, 0, 0)
+        outline_row.setSpacing(8)
+        outline_row.addWidget(self.sw_outline)
+
+        outline_row.addWidget(self.outline_spin, alignment=Qt.AlignVCenter)
+
+        outline_container = QWidget()
+        outline_container.setLayout(outline_row)
+
+        colors_layout.addWidget(outline_container)
         colors_box.setLayout(colors_layout)
 
         self.save_as_btn = QPushButton("Save As…")
@@ -731,6 +798,7 @@ class MainWindow(QMainWindow):
         right.addWidget(self.info)
         right.addWidget(preview_box, stretch=4)
         right.addWidget(colors_box, stretch=1)
+        right.addWidget(self.shadow_group, stretch=0)
         right.addStretch(0)
         right.addWidget(self.save_as_btn, alignment=Qt.AlignRight)
 
@@ -754,6 +822,44 @@ class MainWindow(QMainWindow):
         self.on_zoom_changed(
             self.zoom_slider.value()
         )  # apply BASE_PREVIEW_SCALE mapping
+
+    # ---- Outline / Shadow editing ----
+
+    def on_outline_changed(self, value: int):
+        st = self.current_style()
+        if not st:
+            return
+        st.fields["Outline"] = str(value)
+        self.preview.update()
+
+    def on_shadow_group_toggled(self, checked: bool):
+        # UI-only: expand/collapse without changing the ASS file
+        self.shadow_body.setVisible(checked)
+        self.shadow_distance.setEnabled(checked)
+        self.shadow_opacity.setEnabled(checked)
+        self.sw_shadow.setEnabled(checked)
+        self.shadow_group.adjustSize()
+        self.adjustSize()
+
+    def on_shadow_distance_changed(self, value: int):
+        st = self.current_style()
+        if not st:
+            return
+        st.fields["Shadow"] = str(value)
+        self.preview.update()
+
+    def on_shadow_opacity_changed(self, pct: int):
+        st = self.current_style()
+        if not st:
+            return
+        pct = max(0, min(100, int(pct)))
+        alpha = int(round(pct * 255 / 100))
+
+        col = style_get_color(st, "BackColour") or (0, 0, 0, alpha)
+        r, g, b, _ = col
+        style_set_color(st, "BackColour", (r, g, b, alpha))
+        self.sw_shadow.set_rgba((r, g, b, alpha))
+        self.preview.update()
 
     # ---- File loading ----
 
@@ -797,11 +903,44 @@ class MainWindow(QMainWindow):
             self.sw_highlight.set_rgba(None)
             self.sw_base.set_rgba(None)
             self.sw_outline.set_rgba(None)
+            self.sw_shadow.set_rgba(None)
+            self.outline_spin.blockSignals(True)
+            self.outline_spin.setValue(0)
+            self.outline_spin.blockSignals(False)
+            self.shadow_distance.blockSignals(True)
+            self.shadow_distance.setValue(0)
+            self.shadow_distance.blockSignals(False)
+            self.shadow_opacity.blockSignals(True)
+            self.shadow_opacity.setValue(0)
+            self.shadow_opacity.blockSignals(False)
             return
 
         self.sw_highlight.set_rgba(style_get_color(st, "PrimaryColour"))
         self.sw_base.set_rgba(style_get_color(st, "SecondaryColour"))
         self.sw_outline.set_rgba(style_get_color(st, "OutlineColour"))
+
+        # Sync outline thickness
+        self.outline_spin.blockSignals(True)
+        self.outline_spin.setValue(style_get_int(st, "Outline", 0))
+        self.outline_spin.blockSignals(False)
+
+        # Sync shadow controls (do not toggle checked automatically; checkbox only expands UI)
+        self.shadow_distance.blockSignals(True)
+        self.shadow_distance.setValue(style_get_int(st, "Shadow", 0))
+        self.shadow_distance.blockSignals(False)
+
+        shadow_rgba = style_get_color(st, "BackColour")
+        self.sw_shadow.set_rgba(shadow_rgba)
+        if shadow_rgba:
+            a = shadow_rgba[3]
+            pct = int(round(a * 100 / 255))
+            self.shadow_opacity.blockSignals(True)
+            self.shadow_opacity.setValue(pct)
+            self.shadow_opacity.blockSignals(False)
+        else:
+            self.shadow_opacity.blockSignals(True)
+            self.shadow_opacity.setValue(0)
+            self.shadow_opacity.blockSignals(False)
 
     # ---- Editing ----
 
