@@ -185,13 +185,17 @@ class AssStyle:
     fields: Dict[str, str]
 
 
+from typing import Dict, List, Optional, Tuple  # Ensure Tuple & Dict are imported!
+
+
 @dataclass
 class AssDoc:
     lines: List[str]
     format_cols: List[str]
     styles: List[AssStyle]
     style_line_indices: List[int]
-    first_dialogue_text: Optional[str]
+    first_dialogue_fallback: Optional[str]
+    first_dialogue_by_style: Dict[str, str]
 
     @staticmethod
     def load(path: str) -> "AssDoc":
@@ -245,20 +249,26 @@ class AssDoc:
             styles.append(AssStyle(name=name, fields=fields))
             style_line_indices.append(i)
 
-        first_dialogue = AssDoc._extract_first_dialogue(lines)
+        first_fallback, by_style = AssDoc._extract_first_dialogues(lines)
 
         return AssDoc(
             lines=lines,
             format_cols=format_cols,
             styles=styles,
             style_line_indices=style_line_indices,
-            first_dialogue_text=first_dialogue,
+            first_dialogue_fallback=first_fallback,
+            first_dialogue_by_style=by_style,
         )
 
     @staticmethod
-    def _extract_first_dialogue(lines: List[str]) -> Optional[str]:
+    def _extract_first_dialogues(
+        lines: List[str],
+    ) -> Tuple[Optional[str], Dict[str, str]]:
         in_events = False
         event_format: Optional[List[str]] = None
+        first_fallback = None
+        by_style = {}
+
         for l in lines:
             s = l.strip()
             if s.startswith("[") and s.endswith("]"):
@@ -282,15 +292,21 @@ class AssDoc:
                         head = parts[: len(event_format) - 1]
                         tail = ",".join(parts[len(event_format) - 1 :])
                         parts = head + [tail]
+
                     data = dict(zip(event_format, parts))
                     txt = data.get("Text") or data.get("text")
+                    style = data.get("Style") or data.get("style", "")
+
                     if txt:
-                        return strip_ass_tags(txt)
+                        clean_txt = strip_ass_tags(txt)
+                        # Save the absolute first line as our fallback
+                        if first_fallback is None:
+                            first_fallback = clean_txt
+                        # Save the first line we see for each specific style
+                        if style and style not in by_style:
+                            by_style[style] = clean_txt
 
-                if parts:
-                    return strip_ass_tags(parts[-1])
-
-        return None
+        return first_fallback, by_style
 
     def save_as(self, out_path: str) -> None:
         new_style_lines = []
@@ -874,13 +890,13 @@ class MainWindow(QMainWindow):
 
             self.info.setText(f"Loaded:\n{path}\n\nSelect a style to edit its colors.")
             self.save_as_btn.setEnabled(True)
-            self.use_first_line_btn.setEnabled(bool(self.doc.first_dialogue_text))
+            self.use_first_line_btn.setEnabled(bool(self.doc.first_dialogue_fallback))
 
             if self.doc.styles:
                 self.styles_list.setCurrentRow(0)
 
-            if self.doc.first_dialogue_text:
-                self.preview_text.setText(self.doc.first_dialogue_text[:200])
+            if self.doc.first_dialogue_fallback:
+                self.use_first_song_line()
             else:
                 self.preview_text.setText("Sample Text  AaBb  123  ♪")
 
@@ -1025,8 +1041,21 @@ class MainWindow(QMainWindow):
         self.preview.set_text(text.replace("\\N", "\n"))
 
     def use_first_song_line(self):
-        if self.doc and self.doc.first_dialogue_text:
-            self.preview_text.setText(self.doc.first_dialogue_text[:400])
+        if not self.doc:
+            return
+
+        st = self.current_style()
+        text_to_use = None
+
+        # 1. Try to get the first line for the currently selected style
+        if st and st.name in self.doc.first_dialogue_by_style:
+            text_to_use = self.doc.first_dialogue_by_style[st.name]
+        # 2. Fall back to the very first line of the file
+        elif self.doc.first_dialogue_fallback:
+            text_to_use = self.doc.first_dialogue_fallback
+
+        if text_to_use:
+            self.preview_text.setText(text_to_use[:200])
 
     def pick_bg(self):
         initial = self.preview.bg_color
