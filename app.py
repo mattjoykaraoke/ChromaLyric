@@ -752,10 +752,23 @@ class MainWindow(QMainWindow):
         self.shadow_distance.setFixedWidth(60)
         self.shadow_distance.valueChanged.connect(self.on_shadow_distance_changed)
 
-        # Opacity in percent (0–100) -> mapped to BackColour alpha (0–255)
-        self.shadow_opacity = QSlider(Qt.Horizontal)
-        self.shadow_opacity.setRange(0, 100)
-        self.shadow_opacity.valueChanged.connect(self.on_shadow_opacity_changed)
+        # Opacity percent slider + spinbox combo
+        self.shadow_opacity_slider = QSlider(Qt.Horizontal)
+        self.shadow_opacity_slider.setRange(0, 100)
+
+        self.shadow_opacity_spin = QSpinBox()
+        self.shadow_opacity_spin.setRange(0, 100)
+        self.shadow_opacity_spin.setSuffix("%")
+        self.shadow_opacity_spin.setFixedWidth(60)
+
+        # Keep slider and spinbox perfectly synced
+        self.shadow_opacity_slider.valueChanged.connect(
+            self.shadow_opacity_spin.setValue
+        )
+        self.shadow_opacity_spin.valueChanged.connect(
+            self.shadow_opacity_slider.setValue
+        )
+        self.shadow_opacity_spin.valueChanged.connect(self.on_shadow_opacity_changed)
 
         self.sw_shadow = SwatchControl("Shadow (BackColour)")
         self.sw_shadow.clicked.connect(lambda: self.pick_color("BackColour"))
@@ -763,7 +776,7 @@ class MainWindow(QMainWindow):
         # Collapsible body for shadow options
         self.shadow_body = QWidget()
         shadow_body_layout = QVBoxLayout()
-        shadow_body_layout.setContentsMargins(8, 8, 8, 8)
+        shadow_body_layout.setContentsMargins(0, 0, 0, 0)  # Fixes the misalignment!
         shadow_body_layout.setSpacing(6)
 
         row1 = QHBoxLayout()
@@ -772,14 +785,21 @@ class MainWindow(QMainWindow):
         row1.addWidget(self.shadow_distance)
         shadow_body_layout.addLayout(row1)
 
-        shadow_body_layout.addWidget(QLabel("Opacity"))
-        shadow_body_layout.addWidget(self.shadow_opacity)
+        row2 = QHBoxLayout()
+        row2.addWidget(QLabel("Opacity"))
+        row2.addWidget(self.shadow_opacity_slider)
+        row2.addWidget(self.shadow_opacity_spin)
+        shadow_body_layout.addLayout(row2)
+
         shadow_body_layout.addWidget(self.sw_shadow)
 
         self.shadow_body.setLayout(shadow_body_layout)
         self.shadow_body.setVisible(False)
+
+        # Initialize disabled state
         self.shadow_distance.setEnabled(False)
-        self.shadow_opacity.setEnabled(False)
+        self.shadow_opacity_slider.setEnabled(False)
+        self.shadow_opacity_spin.setEnabled(False)
         self.sw_shadow.setEnabled(False)
 
         shadow_group_layout = QVBoxLayout()
@@ -852,7 +872,8 @@ class MainWindow(QMainWindow):
         # UI-only: expand/collapse without changing the ASS file
         self.shadow_body.setVisible(checked)
         self.shadow_distance.setEnabled(checked)
-        self.shadow_opacity.setEnabled(checked)
+        self.shadow_opacity_slider.setEnabled(checked)
+        self.shadow_opacity_spin.setEnabled(checked)
         self.sw_shadow.setEnabled(checked)
 
     def on_shadow_distance_changed(self, value: int):
@@ -924,9 +945,13 @@ class MainWindow(QMainWindow):
             self.shadow_distance.blockSignals(True)
             self.shadow_distance.setValue(0)
             self.shadow_distance.blockSignals(False)
-            self.shadow_opacity.blockSignals(True)
-            self.shadow_opacity.setValue(0)
-            self.shadow_opacity.blockSignals(False)
+            self.shadow_opacity_spin.blockSignals(True)
+            self.shadow_opacity_spin.setValue(0)
+            self.shadow_opacity_spin.blockSignals(False)
+
+            self.shadow_opacity_slider.blockSignals(True)
+            self.shadow_opacity_slider.setValue(0)
+            self.shadow_opacity_slider.blockSignals(False)
             return
 
         self.sw_highlight.set_rgba(style_get_color(st, "PrimaryColour"))
@@ -948,13 +973,21 @@ class MainWindow(QMainWindow):
         if shadow_rgba:
             a = shadow_rgba[3]
             pct = int(round(a * 100 / 255))
-            self.shadow_opacity.blockSignals(True)
-            self.shadow_opacity.setValue(pct)
-            self.shadow_opacity.blockSignals(False)
+            self.shadow_opacity_spin.blockSignals(True)
+            self.shadow_opacity_spin.setValue(pct)
+            self.shadow_opacity_spin.blockSignals(False)
+
+            self.shadow_opacity_slider.blockSignals(True)
+            self.shadow_opacity_slider.setValue(pct)
+            self.shadow_opacity_slider.blockSignals(False)
         else:
-            self.shadow_opacity.blockSignals(True)
-            self.shadow_opacity.setValue(0)
-            self.shadow_opacity.blockSignals(False)
+            self.shadow_opacity_spin.blockSignals(True)
+            self.shadow_opacity_spin.setValue(0)
+            self.shadow_opacity_spin.blockSignals(False)
+
+            self.shadow_opacity_slider.blockSignals(True)
+            self.shadow_opacity_slider.setValue(0)
+            self.shadow_opacity_slider.blockSignals(False)
 
     # ---- Editing ----
 
