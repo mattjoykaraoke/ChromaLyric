@@ -1,15 +1,17 @@
-[![Download Latest Release](https://img.shields.io/badge/Download-Windows%20Installer-blue?style=for-the-badge&logo=windows)](https://github.com/mattjoykaraoke/ChromaLyric/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Built with Python](https://img.shields.io/badge/Built%20with-Python-3776AB?logo=python&logoColor=white)
 ![Qt](https://img.shields.io/badge/Qt-PySide6-green)
 ![Installer](https://img.shields.io/badge/Installer-Inno%20Setup-purple)
 ![License](https://img.shields.io/badge/license-Proprietary-lightgrey)
 
-🎤 ChromaLyric
-
-ChromaLyric is a desktop tool for previewing and editing ASS (Advanced SubStation Alpha) subtitle style colors with a real-time karaoke visualization.
-
-Built for karaoke creators and subtitle stylists who want fast, accurate color iteration without rendering video.
+<h1 align="center">🎤 ChromaLyric</h1>
+<p align="center">
+    ChromaLyric is a desktop tool for previewing and editing ASS (Advanced SubStation Alpha) subtitle style colors with a real-time karaoke visualization.
+    Built for karaoke creators and subtitle stylists who want fast, accurate color iteration without rendering video.
+</p
+<p align="center">
+  <img src="assets/ChromaLyricLogo.png" width="550">
+</p>
 __________________________________________________________________________________________
 ✨ What It Does
 ChromaLyric focuses on style-level editing inside .ass subtitle files:
@@ -107,4 +109,4 @@ It exists to:
 __________________________________________________________________________________________
 📸 Screenshot
 
-![ChromaLyric Screenshot](assets/screenshot.png)
+![ChromaLyric Screenshot](assets/Screenshot1.png)
