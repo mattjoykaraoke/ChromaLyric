@@ -1,14 +1,4 @@
 ########################################
-# 🔒 PROPRIETARY SOURCE (DO NOT COMMIT)
-########################################
-
-# Main application source
-app.py
-
-# Any other Python source files (uncomment if needed)
-# *.py
-
-########################################
 # 🐍 Python artifacts
 ########################################
 
@@ -50,19 +40,3 @@ env/
 .DS_Store
 Thumbs.db
 desktop.ini
-
-########################################
-# 📦 Installer outputs (optional but recommended)
-########################################
-
-release/
-*.exe
-*.msi
-
-########################################
-# 📦 Excess intaller files
-########################################
-
-*.bat
-*.iss
-PushProcess.txt

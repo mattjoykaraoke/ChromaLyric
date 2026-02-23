@@ -1,0 +1,939 @@
+# app.pyw (or app.py)
+# Adjustments requested:
+# - Make "100% zoom" a more reasonable default for 1080p-style ASS (without requiring PlayRes).
+#   -> We introduce a BASE_PREVIEW_SCALE (default 0.45) and redefine "100%" to mean that base.
+#   -> Slider still shows 25–250% relative to that base, so you can zoom in/out naturally.
+# - Background color must be 100% accurate: remove the two-tone inner panel. Entire preview uses exact BG.
+# - Keep always-on karaoke mode:
+#     Base fill = SecondaryColour
+#     Highlight swipe = PrimaryColour
+# - Keep UI labels:
+#     Highlight (PrimaryColour), Base (SecondaryColour), Outline (OutlineColour)
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+from PySide6.QtCore import QSettings, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QFont, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtWidgets import (
+    QApplication,
+    QColorDialog,
+    QDialog,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
+)
+
+# Redefine what "100%" means for preview sizing.
+# 0.45 matches what you found readable as a baseline for 1080p-ish styles.
+BASE_PREVIEW_SCALE = 0.45
+
+
+def resource_path(relative: str) -> str:
+    """Return an absolute path to a resource, working for dev and PyInstaller builds."""
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        return str(Path(base) / relative)
+    return str(Path(__file__).resolve().parent / relative)
+
+
+# -----------------------------
+# Color naming (native): nearest CSS-ish color name
+# -----------------------------
+
+CSS_COLOR_HEX = {
+    "Black": "#000000",
+    "White": "#FFFFFF",
+    "Red": "#FF0000",
+    "Lime": "#00FF00",
+    "Blue": "#0000FF",
+    "Yellow": "#FFFF00",
+    "Cyan": "#00FFFF",
+    "Magenta": "#FF00FF",
+    "Silver": "#C0C0C0",
+    "Gray": "#808080",
+    "Orange": "#FFA500",
+    "Pink": "#FFC0CB",
+    "Gold": "#FFD700",
+    "Lavender": "#E6E6FA",
+    "Turquoise": "#40E0D0",
+    "Sky Blue": "#87CEEB",
+    "Dodger Blue": "#1E90FF",
+    "Steel Blue": "#4682B4",
+    "Royal Blue": "#4169E1",
+    "Brown": "#A52A2A",
+    "Chocolate": "#D2691E",
+    "Tan": "#D2B48C",
+    "Beige": "#F5F5DC",
+    "Wheat": "#F5DEB3",
+    "Mint": "#98FF98",
+    "Sea Green": "#2E8B57",
+    "Forest Green": "#228B22",
+    "Crimson": "#DC143C",
+    "Firebrick": "#B22222",
+    "Dark Red": "#8B0000",
+    "Dark Orange": "#FF8C00",
+    "Orange Red": "#FF4500",
+    "Plum": "#DDA0DD",
+    "Orchid": "#DA70D6",
+    "Dark Violet": "#9400D3",
+    "Dark Cyan": "#008B8B",
+    "Light Sea Green": "#20B2AA",
+}
+
+
+def _hex_to_rgb(h: str) -> Tuple[int, int, int]:
+    h = h.strip().lstrip("#")
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+CSS_COLORS_RGB = [(name, *_hex_to_rgb(hx)) for name, hx in CSS_COLOR_HEX.items()]
+
+
+def nearest_color_name(r: int, g: int, b: int) -> str:
+    best_name = "Unknown"
+    best_d = 10**18
+    for name, cr, cg, cb in CSS_COLORS_RGB:
+        d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
+        if d < best_d:
+            best_d = d
+            best_name = name
+    return best_name
+
+
+# -----------------------------
+# ASS parsing / writing
+# -----------------------------
+
+
+def ass_alpha_to_qt(a_ass: int) -> int:
+    """ASS alpha: 00 opaque, FF transparent -> Qt alpha: 255 opaque, 0 transparent"""
+    a_ass = max(0, min(255, int(a_ass)))
+    return 255 - a_ass
+
+
+def parse_ass_color(s: str) -> Tuple[int, int, int, int]:
+    """
+    Accepts common ASS variants:
+      &HBBGGRR& , &HAABBGGRR&
+      &HBBGGRR  , &HAABBGGRR
+      HBBGGRR   , HAABBGGRR
+      BBGGRR    , AABBGGRR
+    Returns (r,g,b,a_ass).
+    """
+    t = s.strip().replace(" ", "")
+    m = re.match(r"^&?H?([0-9A-Fa-f]{6,8})&?$", t)
+    if not m:
+        raise ValueError(f"Invalid ASS color: {s!r}")
+
+    hexpart = m.group(1)
+
+    if len(hexpart) == 6:  # BBGGRR
+        bb = int(hexpart[0:2], 16)
+        gg = int(hexpart[2:4], 16)
+        rr = int(hexpart[4:6], 16)
+        aa = 0
+    else:  # AABBGGRR
+        aa = int(hexpart[0:2], 16)
+        bb = int(hexpart[2:4], 16)
+        gg = int(hexpart[4:6], 16)
+        rr = int(hexpart[6:8], 16)
+
+    return rr, gg, bb, aa
+
+
+def format_ass_color(r: int, g: int, b: int, a: int = 0) -> str:
+    """Keep file style: &H{AABBGGRR} (no trailing &)."""
+    r = max(0, min(255, int(r)))
+    g = max(0, min(255, int(g)))
+    b = max(0, min(255, int(b)))
+    a = max(0, min(255, int(a)))
+    return f"&H{a:02X}{b:02X}{g:02X}{r:02X}"
+
+
+def strip_ass_tags(text: str) -> str:
+    r"""
+    Remove override blocks like {\...}, convert \\N/\\n to newlines, and trim.
+    """
+    t = re.sub(r"\{[^}]*\}", "", text)  # remove {...}
+    t = t.replace("\\N", "\n").replace("\\n", "\n")
+    t = t.replace("\\h", " ")
+    return t.strip()
+
+
+@dataclass
+class AssStyle:
+    name: str
+    fields: Dict[str, str]
+
+
+@dataclass
+class AssDoc:
+    lines: List[str]
+    format_cols: List[str]
+    styles: List[AssStyle]
+    style_line_indices: List[int]
+    first_dialogue_text: Optional[str]
+
+    @staticmethod
+    def load(path: str) -> "AssDoc":
+        text = Path(path).read_text(encoding="utf-8-sig", errors="replace")
+        lines = text.splitlines()
+
+        section_name = None
+        if any(l.strip() == "[V4+ Styles]" for l in lines):
+            section_name = "V4+ Styles"
+        elif any(l.strip() == "[V4 Styles]" for l in lines):
+            section_name = "V4 Styles"
+        if not section_name:
+            raise RuntimeError("No [V4+ Styles] or [V4 Styles] section found.")
+
+        in_styles = False
+        style_section_indices: List[int] = []
+        for i, l in enumerate(lines):
+            s = l.strip()
+            if s.startswith("[") and s.endswith("]"):
+                in_styles = s == f"[{section_name}]"
+                continue
+            if in_styles:
+                style_section_indices.append(i)
+
+        format_cols: List[str] = []
+        for i in style_section_indices:
+            if lines[i].strip().lower().startswith("format:"):
+                fmt = lines[i].split(":", 1)[1]
+                format_cols = [c.strip() for c in fmt.split(",") if c.strip()]
+                break
+        if not format_cols:
+            raise RuntimeError("Styles section missing a valid Format: line.")
+
+        styles: List[AssStyle] = []
+        style_line_indices: List[int] = []
+        for i in style_section_indices:
+            if not lines[i].strip().lower().startswith("style:"):
+                continue
+            payload = lines[i].split(":", 1)[1].lstrip()
+            parts = [p.strip() for p in payload.split(",")]
+
+            if len(parts) < len(format_cols):
+                parts += [""] * (len(format_cols) - len(parts))
+            elif len(parts) > len(format_cols):
+                head = parts[: len(format_cols) - 1]
+                tail = ",".join(parts[len(format_cols) - 1 :])
+                parts = head + [tail]
+
+            fields = dict(zip(format_cols, parts))
+            name = fields.get("Name", f"Style@{i}")
+            styles.append(AssStyle(name=name, fields=fields))
+            style_line_indices.append(i)
+
+        first_dialogue = AssDoc._extract_first_dialogue(lines)
+
+        return AssDoc(
+            lines=lines,
+            format_cols=format_cols,
+            styles=styles,
+            style_line_indices=style_line_indices,
+            first_dialogue_text=first_dialogue,
+        )
+
+    @staticmethod
+    def _extract_first_dialogue(lines: List[str]) -> Optional[str]:
+        in_events = False
+        event_format: Optional[List[str]] = None
+        for l in lines:
+            s = l.strip()
+            if s.startswith("[") and s.endswith("]"):
+                in_events = s == "[Events]"
+                event_format = None
+                continue
+            if not in_events:
+                continue
+
+            if s.lower().startswith("format:"):
+                fmt = s.split(":", 1)[1]
+                event_format = [c.strip() for c in fmt.split(",") if c.strip()]
+                continue
+
+            if s.lower().startswith("dialogue:"):
+                payload = s.split(":", 1)[1].lstrip()
+                parts = [p.strip() for p in payload.split(",")]
+
+                if event_format and len(parts) >= len(event_format):
+                    if len(parts) > len(event_format):
+                        head = parts[: len(event_format) - 1]
+                        tail = ",".join(parts[len(event_format) - 1 :])
+                        parts = head + [tail]
+                    data = dict(zip(event_format, parts))
+                    txt = data.get("Text") or data.get("text")
+                    if txt:
+                        return strip_ass_tags(txt)
+
+                if parts:
+                    return strip_ass_tags(parts[-1])
+
+        return None
+
+    def save_as(self, out_path: str) -> None:
+        new_style_lines = []
+        for st in self.styles:
+            row = [st.fields.get(col, "") for col in self.format_cols]
+            new_style_lines.append("Style: " + ", ".join(row))
+
+        if self.style_line_indices:
+            start = self.style_line_indices[0]
+            end = self.style_line_indices[-1]
+            self.lines[start : end + 1] = new_style_lines
+
+        Path(out_path).write_text(
+            "\n".join(self.lines) + "\n", encoding="utf-8", newline="\n"
+        )
+
+
+def style_get_int(style: AssStyle, key: str, default: int = 0) -> int:
+    v = style.fields.get(key)
+    if v is None or v == "":
+        return default
+    try:
+        return int(v)
+    except ValueError:
+        return default
+
+
+def style_get_color(style: AssStyle, key: str) -> Optional[Tuple[int, int, int, int]]:
+    v = style.fields.get(key)
+    if not v:
+        return None
+    try:
+        return parse_ass_color(v)
+    except ValueError:
+        return None
+
+
+def style_set_color(style: AssStyle, key: str, rgba: Tuple[int, int, int, int]) -> None:
+    if key not in style.fields:
+        raise KeyError(f"Style format does not include '{key}'.")
+    r, g, b, a = rgba
+    style.fields[key] = format_ass_color(r, g, b, a)
+
+
+# -----------------------------
+# Preview widget (always karaoke mode)
+# -----------------------------
+
+
+class AssPreviewWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setMinimumHeight(520)
+
+        self.sample_text = "Sample Text  AaBb  123  ♪"
+        self.style: Optional[AssStyle] = None
+        self.preview_scale = BASE_PREVIEW_SCALE  # "effective zoom"
+        self.bg_color = QColor(30, 30, 30)
+
+        # always-on karaoke progress
+        self.karaoke_progress = 0.35  # 0..1
+
+    def set_style(self, style: Optional[AssStyle]):
+        self.style = style
+        self.update()
+
+    def set_text(self, text: str):
+        self.sample_text = text if text.strip() else " "
+        self.update()
+
+    def set_preview_scale(self, scale: float):
+        # scale is "effective zoom" applied to ASS fontsize, outline, shadow, margins
+        self.preview_scale = max(0.10, min(6.0, float(scale)))
+        self.update()
+
+    def set_bg_color(self, c: QColor):
+        self.bg_color = c
+        self.update()
+
+    def set_k_progress(self, progress01: float):
+        self.karaoke_progress = max(0.0, min(1.0, float(progress01)))
+        self.update()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
+
+        # EXACT background color across the entire preview area
+        p.fillRect(self.rect(), self.bg_color)
+
+        if not self.style:
+            p.end()
+            return
+
+        st = self.style
+
+        # Workflow mapping:
+        # - Base (unhighlighted) = SecondaryColour
+        # - Highlight swipe      = PrimaryColour
+        prim = style_get_color(st, "PrimaryColour") or (255, 255, 255, 0)  # highlight
+        sec = style_get_color(st, "SecondaryColour") or (255, 255, 0, 0)  # base
+        outl = style_get_color(st, "OutlineColour") or (0, 0, 0, 0)
+        back = style_get_color(st, "BackColour") or (0, 0, 0, 0)  # shadow color
+
+        prim_q = QColor(prim[0], prim[1], prim[2], ass_alpha_to_qt(prim[3]))
+        sec_q = QColor(sec[0], sec[1], sec[2], ass_alpha_to_qt(sec[3]))
+        outl_q = QColor(outl[0], outl[1], outl[2], ass_alpha_to_qt(outl[3]))
+        back_q = QColor(back[0], back[1], back[2], ass_alpha_to_qt(back[3]))
+
+        fontname = st.fields.get("Fontname", "Arial")
+        fontsize = style_get_int(st, "Fontsize", 48)
+        bold = style_get_int(st, "Bold", 0) != 0
+        italic = style_get_int(st, "Italic", 0) != 0
+
+        s = self.preview_scale
+
+        font = QFont(fontname, max(1, int(fontsize * s)))
+        font.setBold(bold)
+        font.setItalic(italic)
+
+        outline_w = float(style_get_int(st, "Outline", 0)) * s
+        shadow = float(style_get_int(st, "Shadow", 0)) * s
+
+        align = style_get_int(st, "Alignment", 2)
+        if align in (1, 2, 3):
+            vpos = "bottom"
+        elif align in (4, 5, 6):
+            vpos = "middle"
+        else:
+            vpos = "top"
+
+        if align in (1, 4, 7):
+            hpos = "left"
+        elif align in (2, 5, 8):
+            hpos = "center"
+        else:
+            hpos = "right"
+
+        margin = int(24 * s)
+        sub_rect = self.rect().adjusted(margin, margin, -margin, -margin)
+
+        p.setFont(font)
+        metrics = p.fontMetrics()
+        lines = self.sample_text.splitlines() if self.sample_text else [" "]
+
+        line_h = metrics.height()
+        block_h = line_h * len(lines)
+
+        if vpos == "bottom":
+            y0 = sub_rect.bottom() - int(36 * s) - block_h
+        elif vpos == "middle":
+            y0 = sub_rect.center().y() - block_h // 2
+        else:
+            y0 = sub_rect.top() + int(36 * s)
+
+        for li, text in enumerate(lines):
+            text_rect = metrics.boundingRect(text)
+
+            if hpos == "left":
+                x = sub_rect.left() + int(36 * s)
+            elif hpos == "center":
+                x = sub_rect.center().x() - text_rect.width() / 2
+            else:
+                x = sub_rect.right() - text_rect.width() - int(36 * s)
+
+            baseline_x = int(x)
+            baseline_y = int(y0 + (li + 1) * line_h)
+
+            path = QPainterPath()
+            path.addText(baseline_x, baseline_y, font, text)
+
+            # Shadow
+            if shadow > 0.0 and back_q.alpha() > 0:
+                p.fillPath(path.translated(shadow, shadow), back_q)
+
+            # Outline
+            if outline_w > 0.0 and outl_q.alpha() > 0:
+                pen = QPen(
+                    outl_q, outline_w * 2.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin
+                )
+                p.strokePath(path, pen)
+
+            # Base fill (SecondaryColour)
+            p.fillPath(path, sec_q)
+
+            # Highlight overlay (PrimaryColour)
+            if prim_q.alpha() > 0:
+                bounds = path.boundingRect()
+                clip_w = bounds.width() * self.karaoke_progress
+                clip = bounds.adjusted(0, 0, -(bounds.width() - clip_w), 0)
+
+                p.save()
+                p.setClipRect(clip)
+                p.fillPath(path, prim_q)
+                p.restore()
+
+        p.end()
+
+
+# -----------------------------
+# Swatch control widget (UI labels updated)
+# -----------------------------
+
+
+class SwatchControl(QWidget):
+    clicked = Signal()
+
+    def __init__(self, title: str):
+        super().__init__()
+        self._title = title
+        self._rgba: Optional[Tuple[int, int, int, int]] = None
+
+        self.title_lbl = QLabel(title)
+        self.title_lbl.setAlignment(Qt.AlignCenter)
+        self.title_lbl.setStyleSheet("color: white; font-weight: 800; font-size: 14px;")
+
+        self.swatch_btn = QPushButton("")
+        self.swatch_btn.setFixedHeight(52)
+        self.swatch_btn.clicked.connect(self.clicked.emit)
+
+        self.name_lbl = QLabel("")
+        self.name_lbl.setAlignment(Qt.AlignCenter)
+        self.name_lbl.setStyleSheet("color: white; font-weight: 600; font-size: 13px;")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(6)
+        layout.addWidget(self.title_lbl)
+        layout.addWidget(self.swatch_btn)
+        layout.addWidget(self.name_lbl)
+        self.setLayout(layout)
+
+    def set_rgba(self, rgba: Optional[Tuple[int, int, int, int]]):
+        self._rgba = rgba
+        if rgba is None:
+            self.swatch_btn.setStyleSheet("padding: 8px; border: 1px solid #444;")
+            self.name_lbl.setText("(missing)")
+            return
+
+        r, g, b, a = rgba
+        qt_a = ass_alpha_to_qt(a)
+        self.swatch_btn.setStyleSheet(
+            f"background-color: rgba({r},{g},{b},{qt_a}); border: 1px solid #444;"
+        )
+        hexv = f"#{r:02X}{g:02X}{b:02X}"
+        nm = nearest_color_name(r, g, b)
+        self.name_lbl.setText(f"{nm}  {hexv}")
+
+
+# -----------------------------
+# Drag & drop
+# -----------------------------
+
+
+def is_supported_file(path: str) -> bool:
+    return Path(path).suffix.lower() == ".ass"
+
+
+class DropWidget(QWidget):
+    fileDropped = Signal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.setAcceptDrops(True)
+
+        self.label = QLabel("Drag & drop an .ass file here\n—or click Open…")
+        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setStyleSheet("font-size: 16px; padding: 18px; color: white;")
+
+        self.open_btn = QPushButton("Open…")
+        self.open_btn.clicked.connect(self.open_file_dialog)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.open_btn, alignment=Qt.AlignCenter)
+        self.setLayout(layout)
+
+    def open_file_dialog(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Open ASS file", "", "ASS (*.ass);;All files (*.*)"
+        )
+        if path:
+            self.fileDropped.emit(path)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            if any(
+                u.isLocalFile() and is_supported_file(u.toLocalFile())
+                for u in event.mimeData().urls()
+            ):
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def dropEvent(self, event):
+        for u in event.mimeData().urls():
+            if u.isLocalFile() and is_supported_file(u.toLocalFile()):
+                self.fileDropped.emit(u.toLocalFile())
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+
+# -----------------------------
+# Main window
+# -----------------------------
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("ChromaLyric")
+        self.resize(1220, 780)
+
+        self.doc: Optional[AssDoc] = None
+        self.current_path: Optional[str] = None
+
+        # Left
+        self.drop = DropWidget()
+        self.drop.fileDropped.connect(self.load_ass)
+
+        self.styles_list = QListWidget()
+        self.styles_list.currentRowChanged.connect(self.on_style_selected)
+        self.styles_list.setStyleSheet("font-size: 14px;")
+
+        self.about_btn = QPushButton("About")
+        self.about_btn.clicked.connect(self.show_about)
+
+        left = QVBoxLayout()
+        left.addWidget(self.drop)
+
+        styles_lbl = QLabel("Styles:")
+        styles_lbl.setStyleSheet("font-size: 14px; font-weight: 700;")
+        left.addWidget(styles_lbl)
+        left.addWidget(self.styles_list)
+
+        left.addStretch(1)  # push About to bottom
+        left.addWidget(self.about_btn, alignment=Qt.AlignLeft)
+
+        left_wrap = QWidget()
+        left_wrap.setLayout(left)
+
+        # Right
+        self.info = QLabel("Open an .ass file to begin.")
+        self.info.setWordWrap(True)
+
+        # Preview
+        self.preview = AssPreviewWidget()
+
+        self.preview_text = QLineEdit()
+        self.preview_text.setPlaceholderText(
+            r"Preview text… (you can use \N for new lines)"
+        )
+        self.preview_text.textChanged.connect(self.on_preview_text_changed)
+
+        self.use_first_line_btn = QPushButton("Use first line of lyrics")
+        self.use_first_line_btn.clicked.connect(self.use_first_song_line)
+        self.use_first_line_btn.setEnabled(False)
+
+        # Zoom: percentage is relative to BASE_PREVIEW_SCALE
+        self.zoom_slider = QSlider(Qt.Horizontal)
+        self.zoom_slider.setMinimum(25)
+        self.zoom_slider.setMaximum(250)
+        self.zoom_slider.setValue(100)
+        self.zoom_slider.valueChanged.connect(self.on_zoom_changed)
+
+        self.zoom_lbl = QLabel("Zoom: 100%")
+        self.zoom_lbl.setMinimumWidth(90)
+
+        self.reset_zoom_btn = QPushButton("Reset Zoom")
+        self.reset_zoom_btn.clicked.connect(self.reset_zoom)
+
+        # BG
+        self.bg_hex = QLineEdit("#1E1E1E")
+        self.bg_hex.setMaximumWidth(100)
+        self.bg_hex.editingFinished.connect(self.on_bg_hex_changed)
+
+        self.bg_pick_btn = QPushButton("Pick BG…")
+        self.bg_pick_btn.clicked.connect(self.pick_bg)
+
+        # Karaoke progress (always enabled)
+        self.k_slider = QSlider(Qt.Horizontal)
+        self.k_slider.setMinimum(0)
+        self.k_slider.setMaximum(100)
+        self.k_slider.setValue(35)
+        self.k_slider.valueChanged.connect(self.on_k_changed)
+
+        self.k_lbl = QLabel("K: 35%")
+        self.k_lbl.setMinimumWidth(70)
+
+        ctrl_row1 = QHBoxLayout()
+        ctrl_row1.addWidget(QLabel("Text:"))
+        ctrl_row1.addWidget(self.preview_text, 1)
+        ctrl_row1.addWidget(self.use_first_line_btn)
+
+        ctrl_row2 = QHBoxLayout()
+        ctrl_row2.addWidget(self.zoom_lbl)
+        ctrl_row2.addWidget(self.zoom_slider, 1)
+        ctrl_row2.addWidget(self.reset_zoom_btn)
+        ctrl_row2.addSpacing(10)
+        ctrl_row2.addWidget(QLabel("BG:"))
+        ctrl_row2.addWidget(self.bg_hex)
+        ctrl_row2.addWidget(self.bg_pick_btn)
+
+        ctrl_row3 = QHBoxLayout()
+        ctrl_row3.addWidget(QLabel(r"\k swipe:"))
+        ctrl_row3.addWidget(self.k_lbl)
+        ctrl_row3.addWidget(self.k_slider, 1)
+
+        preview_box = QGroupBox("Preview")
+        pv_layout = QVBoxLayout()
+        pv_layout.addLayout(ctrl_row1)
+        pv_layout.addLayout(ctrl_row2)
+        pv_layout.addLayout(ctrl_row3)
+        pv_layout.addWidget(self.preview)
+        preview_box.setLayout(pv_layout)
+
+        # Swatches (UI labels reflect usage)
+        self.sw_highlight = SwatchControl("Highlight (PrimaryColour)")
+        self.sw_base = SwatchControl("Base (SecondaryColour)")
+        self.sw_outline = SwatchControl("Outline (OutlineColour)")
+
+        self.sw_highlight.clicked.connect(lambda: self.pick_color("PrimaryColour"))
+        self.sw_base.clicked.connect(lambda: self.pick_color("SecondaryColour"))
+        self.sw_outline.clicked.connect(lambda: self.pick_color("OutlineColour"))
+
+        colors_box = QGroupBox("Style Colors")
+        colors_layout = QHBoxLayout()
+        colors_layout.addWidget(self.sw_highlight)
+        colors_layout.addWidget(self.sw_base)
+        colors_layout.addWidget(self.sw_outline)
+        colors_box.setLayout(colors_layout)
+
+        self.save_as_btn = QPushButton("Save As…")
+        self.save_as_btn.clicked.connect(self.save_as)
+        self.save_as_btn.setEnabled(False)
+
+        right = QVBoxLayout()
+        right.addWidget(self.info)
+        right.addWidget(preview_box, stretch=4)
+        right.addWidget(colors_box, stretch=1)
+        right.addStretch(0)
+        right.addWidget(self.save_as_btn, alignment=Qt.AlignRight)
+
+        right_wrap = QWidget()
+        right_wrap.setLayout(right)
+
+        root = QWidget()
+        root_layout = QHBoxLayout()
+        root_layout.addWidget(left_wrap, 2)
+        root_layout.addWidget(right_wrap, 5)
+        root.setLayout(root_layout)
+        self.setCentralWidget(root)
+
+        self.setStyleSheet("""
+            QLabel { color: white; }
+            QGroupBox { color: white; }
+        """)
+
+        self.preview.set_bg_color(QColor(0x1E, 0x1E, 0x1E))
+        self.preview.set_k_progress(self.k_slider.value() / 100.0)
+        self.on_zoom_changed(
+            self.zoom_slider.value()
+        )  # apply BASE_PREVIEW_SCALE mapping
+
+    # ---- File loading ----
+
+    def load_ass(self, path: str):
+        try:
+            self.doc = AssDoc.load(path)
+            self.current_path = path
+
+            self.styles_list.clear()
+            for st in self.doc.styles:
+                self.styles_list.addItem(QListWidgetItem(st.name))
+
+            self.info.setText(f"Loaded:\n{path}\n\nSelect a style to edit its colors.")
+            self.save_as_btn.setEnabled(True)
+            self.use_first_line_btn.setEnabled(bool(self.doc.first_dialogue_text))
+
+            if self.doc.styles:
+                self.styles_list.setCurrentRow(0)
+
+            if self.doc.first_dialogue_text:
+                self.preview_text.setText(self.doc.first_dialogue_text[:200])
+            else:
+                self.preview_text.setText("Sample Text  AaBb  123  ♪")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Load error", str(e))
+
+    def current_style(self) -> Optional[AssStyle]:
+        if not self.doc:
+            return None
+        idx = self.styles_list.currentRow()
+        if idx < 0 or idx >= len(self.doc.styles):
+            return None
+        return self.doc.styles[idx]
+
+    def on_style_selected(self, row: int):
+        st = self.current_style()
+        self.preview.set_style(st)
+
+        if not st:
+            self.sw_highlight.set_rgba(None)
+            self.sw_base.set_rgba(None)
+            self.sw_outline.set_rgba(None)
+            return
+
+        self.sw_highlight.set_rgba(style_get_color(st, "PrimaryColour"))
+        self.sw_base.set_rgba(style_get_color(st, "SecondaryColour"))
+        self.sw_outline.set_rgba(style_get_color(st, "OutlineColour"))
+
+    # ---- Editing ----
+
+    def pick_color(self, key: str):
+        st = self.current_style()
+        if not st:
+            return
+
+        current = style_get_color(st, key) or (255, 255, 255, 0)
+        r, g, b, a = current
+
+        chosen = QColorDialog.getColor(QColor(r, g, b), self, f"Pick {key}")
+        if not chosen.isValid():
+            return
+
+        style_set_color(st, key, (chosen.red(), chosen.green(), chosen.blue(), a))
+        self.on_style_selected(self.styles_list.currentRow())
+        self.preview.update()
+
+    def save_as(self):
+        if not self.doc or not self.current_path:
+            return
+        default_out = str(Path(self.current_path).with_suffix("")) + "_edited.ass"
+        out_path, _ = QFileDialog.getSaveFileName(
+            self, "Save ASS As", default_out, "ASS (*.ass)"
+        )
+        if not out_path:
+            return
+        try:
+            self.doc.save_as(out_path)
+            QMessageBox.information(self, "Saved", f"Saved:\n{out_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Save error", str(e))
+
+    def show_about(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("About ChromaLyric")
+        dlg.setModal(True)
+
+        logo = QLabel()
+        pix = QPixmap(resource_path("assets/ChromaLyricLogo.png"))
+        if not pix.isNull():
+            pix = pix.scaled(520, 220, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo.setPixmap(pix)
+        logo.setAlignment(Qt.AlignCenter)
+
+        text_lbl = QLabel(
+            "Vibe Coded in 2026 by Matt Joy. \nVersion 1.5.0. \nBuilt with Qt / PySide6 (LGPL v3). \nSee licenses folder for details."
+        )
+        text_lbl.setAlignment(Qt.AlignCenter)
+        text_lbl.setStyleSheet("font-size: 14px; color: white;")
+
+        ok = QPushButton("OK")
+        ok.clicked.connect(dlg.accept)
+
+        lay = QVBoxLayout()
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(12)
+        lay.addWidget(logo)
+        lay.addWidget(text_lbl)
+        lay.addWidget(ok, alignment=Qt.AlignCenter)
+
+        dlg.setLayout(lay)
+        dlg.setStyleSheet("""
+            QDialog { background-color: #1E1E1E; }
+            QPushButton { padding: 6px 14px; }
+        """)
+        dlg.exec()
+
+    # ---- Preview controls ----
+
+    def reset_zoom(self):
+        self.zoom_slider.setValue(100)
+
+    def on_zoom_changed(self, v: int):
+        # v is percent relative to BASE_PREVIEW_SCALE
+        self.zoom_lbl.setText(f"Zoom: {v}%")
+        effective_scale = BASE_PREVIEW_SCALE * (v / 100.0)
+        self.preview.set_preview_scale(effective_scale)
+
+    def on_preview_text_changed(self, text: str):
+        self.preview.set_text(text.replace("\\N", "\n"))
+
+    def use_first_song_line(self):
+        if self.doc and self.doc.first_dialogue_text:
+            self.preview_text.setText(self.doc.first_dialogue_text[:400])
+
+    def pick_bg(self):
+        initial = self.preview.bg_color
+        chosen = QColorDialog.getColor(initial, self, "Pick preview background")
+        if not chosen.isValid():
+            return
+        self.preview.set_bg_color(chosen)
+        self.bg_hex.setText(chosen.name().upper())
+
+    def on_bg_hex_changed(self):
+        t = self.bg_hex.text().strip()
+        if not re.fullmatch(r"#?[0-9A-Fa-f]{6}", t):
+            QMessageBox.warning(self, "Invalid hex", "Enter a hex color like #1E1E1E")
+            return
+        if not t.startswith("#"):
+            t = "#" + t
+        c = QColor(t)
+        if not c.isValid():
+            QMessageBox.warning(
+                self, "Invalid hex", "That hex color couldn't be parsed."
+            )
+            return
+        self.preview.set_bg_color(c)
+
+    def on_k_changed(self, v: int):
+        self.k_lbl.setText(f"K: {v}%")
+        self.preview.set_k_progress(v / 100.0)
+
+
+def main():
+    from PySide6.QtGui import QIcon
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("ChromaLyric")
+    app.setWindowIcon(QIcon(resource_path("assets/ChromaLyric.ico")))
+    win = MainWindow()
+
+    # If launched via file association (double-click .ass)
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+        if Path(path).exists() and path.lower().endswith(".ass"):
+            win.load_ass(path)
+
+    win.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
