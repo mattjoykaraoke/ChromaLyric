@@ -786,7 +786,7 @@ class MainWindow(QMainWindow):
         shadow_body_layout.addLayout(row1)
 
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Opacity"))
+        row2.addWidget(QLabel("Transparency"))
         row2.addWidget(self.shadow_opacity_slider)
         row2.addWidget(self.shadow_opacity_spin)
         shadow_body_layout.addLayout(row2)
