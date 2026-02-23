@@ -933,6 +933,7 @@ class MainWindow(QMainWindow):
     def on_style_selected(self, row: int):
         st = self.current_style()
         self.preview.set_style(st)
+        self.use_first_song_line()
 
         if not st:
             self.sw_highlight.set_rgba(None)
@@ -1035,7 +1036,7 @@ class MainWindow(QMainWindow):
         logo.setAlignment(Qt.AlignCenter)
 
         text_lbl = QLabel(
-            "Vibe Coded in 2026 by Matt Joy. \nVersion 1.6.2. \nBuilt with Qt / PySide6 (LGPL v3). \nSee licenses folder for details."
+            "Vibe Coded in 2026 by Matt Joy. \nVersion 1.6.4. \nBuilt with Qt / PySide6 (LGPL v3). \nSee licenses folder for details."
         )
         text_lbl.setAlignment(Qt.AlignCenter)
         text_lbl.setStyleSheet("font-size: 14px; color: white;")
