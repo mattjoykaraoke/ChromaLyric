@@ -1060,6 +1060,7 @@ def main():
     from PySide6.QtGui import QIcon
 
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     app.setApplicationName("ChromaLyric")
     app.setWindowIcon(QIcon(resource_path("assets/ChromaLyric.ico")))
     win = MainWindow()
