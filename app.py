@@ -854,8 +854,6 @@ class MainWindow(QMainWindow):
         self.shadow_distance.setEnabled(checked)
         self.shadow_opacity.setEnabled(checked)
         self.sw_shadow.setEnabled(checked)
-        self.shadow_group.adjustSize()
-        self.adjustSize()
 
     def on_shadow_distance_changed(self, value: int):
         st = self.current_style()
@@ -1004,7 +1002,7 @@ class MainWindow(QMainWindow):
         logo.setAlignment(Qt.AlignCenter)
 
         text_lbl = QLabel(
-            "Vibe Coded in 2026 by Matt Joy. \nVersion 1.5.0. \nBuilt with Qt / PySide6 (LGPL v3). \nSee licenses folder for details."
+            "Vibe Coded in 2026 by Matt Joy. \nVersion 1.6.2. \nBuilt with Qt / PySide6 (LGPL v3). \nSee licenses folder for details."
         )
         text_lbl.setAlignment(Qt.AlignCenter)
         text_lbl.setStyleSheet("font-size: 14px; color: white;")
