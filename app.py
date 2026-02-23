@@ -1036,8 +1036,13 @@ class MainWindow(QMainWindow):
         logo.setAlignment(Qt.AlignCenter)
 
         text_lbl = QLabel(
-            "Vibe Coded in 2026 by Matt Joy. \nVersion 1.6.4. \nBuilt with Qt / PySide6 (LGPL v3). \nSee licenses folder for details."
+            "Vibe Coded in 2026 by Matt Joy.<br>"
+            + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #87CEEB;">youtube.com/@MattJoyKaraoke</a><br><br>'
+            + "Version 1.6.4.<br>"
+            + "Built with Qt / PySide6 (LGPL v3).<br>"
+            + "See licenses folder for details."
         )
+        text_lbl.setOpenExternalLinks(True)
         text_lbl.setAlignment(Qt.AlignCenter)
         text_lbl.setStyleSheet("font-size: 14px; color: white;")
 
