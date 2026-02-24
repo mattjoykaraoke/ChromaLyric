@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from PySide6.QtCore import QSettings, Qt, Signal
+from PySide6.QtCore import QSettings, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QFont, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -697,6 +697,15 @@ class MainWindow(QMainWindow):
         self.k_lbl = QLabel("K: 35%")
         self.k_lbl.setMinimumWidth(70)
 
+        # Build the Play Button
+        self.k_play_btn = QPushButton("▶ Play")
+        self.k_play_btn.clicked.connect(self.toggle_k_play)
+
+        # Setup the Animation Timer (20ms = 50 FPS)
+        self.k_timer = QTimer(self)
+        self.k_timer.setInterval(20)
+        self.k_timer.timeout.connect(self.on_k_timer_tick)
+
         ctrl_row1 = QHBoxLayout()
         ctrl_row1.addWidget(QLabel("Text:"))
         ctrl_row1.addWidget(self.preview_text, 1)
@@ -713,6 +722,7 @@ class MainWindow(QMainWindow):
 
         ctrl_row3 = QHBoxLayout()
         ctrl_row3.addWidget(QLabel(r"\k swipe:"))
+        ctrl_row3.addWidget(self.k_play_btn)
         ctrl_row3.addWidget(self.k_lbl)
         ctrl_row3.addWidget(self.k_slider, 1)
 
@@ -1120,6 +1130,26 @@ class MainWindow(QMainWindow):
     def on_k_changed(self, v: int):
         self.k_lbl.setText(f"K: {v}%")
         self.preview.set_k_progress(v / 100.0)
+
+    def toggle_k_play(self):
+        if self.k_timer.isActive():
+            self.k_timer.stop()
+            self.k_play_btn.setText("▶ Play")
+        else:
+            # If it's already at 100%, rewind it to 0% before playing
+            if self.k_slider.value() >= 100:
+                self.k_slider.setValue(0)
+            self.k_timer.start()
+            self.k_play_btn.setText("⏸ Stop")
+
+    def on_k_timer_tick(self):
+        val = self.k_slider.value()
+        if val >= 100:
+            self.k_timer.stop()
+            self.k_play_btn.setText("▶ Play")
+        else:
+            # Move the slider forward by 1% every 20ms
+            self.k_slider.setValue(val + 1)
 
 
 def main():

@@ -29,7 +29,7 @@ ChromaLyric uses a simplified and predictable karaoke preview model:
 • SecondaryColour	- Base lyric fill
 • PrimaryColour	- Highlight swipe color
 • OutlineColour	- Text outline
-• BackColour - Preview background
+• BackColour - Shadow
 
 This mirrors common karaoke rendering behavior and makes color iteration intuitive.
 __________________________________________________________________________________________
@@ -58,6 +58,7 @@ ________________________________________________________________________________
 • Does not alter non-style sections
 
 It is strictly a style color editor and visualizer.
+• Preview is designed for color/contrast decisions and may differ slightly from libass/ ffmpeg render output.
 __________________________________________________________________________________________
 🛠 How It Works Internally
 
@@ -66,6 +67,8 @@ ________________________________________________________________________________
 3. Maps each style field dynamically.
 4. Allows live modification of:
   • Colors
+  • Outline size
+  • Shadow effects
   • Font name (future release)
   • Font size (future release)
 5. Rewrites only the style lines when saving.
