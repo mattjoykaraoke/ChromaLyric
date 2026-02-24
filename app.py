@@ -62,6 +62,7 @@ def resource_path(relative: str) -> str:
 CSS_COLOR_HEX = {
     # --- Easter Eggs & Creator Colors ---
     "Matt Joy Slate": "#788A96",
+    "Nox Black": "#000001",
     # --- Creator & Brand Colors ---
     "Spotify Green": "#1DB954",
     "Twitch Purple": "#9146FF",
@@ -918,7 +919,17 @@ class MainWindow(QMainWindow):
         row2.addWidget(self.shadow_opacity_spin)
         shadow_body_layout.addLayout(row2)
 
-        shadow_body_layout.addWidget(self.sw_shadow)
+        # Create the Quick Black button
+        self.quick_black_btn = QPushButton("⬛ Set Black")
+        self.quick_black_btn.setToolTip("Instantly set shadow color to pure black")
+        self.quick_black_btn.setMaximumWidth(90)
+        self.quick_black_btn.clicked.connect(self.set_shadow_to_black)
+
+        # Put the Swatch and the Button side-by-side
+        shadow_row3 = QHBoxLayout()
+        shadow_row3.addWidget(self.sw_shadow)
+        shadow_row3.addWidget(self.quick_black_btn, alignment=Qt.AlignVCenter)
+        shadow_body_layout.addLayout(shadow_row3)
 
         self.shadow_body.setLayout(shadow_body_layout)
         self.shadow_body.setVisible(False)
@@ -928,6 +939,7 @@ class MainWindow(QMainWindow):
         self.shadow_opacity_slider.setEnabled(False)
         self.shadow_opacity_spin.setEnabled(False)
         self.sw_shadow.setEnabled(False)
+        self.quick_black_btn.setEnabled(False)
 
         shadow_group_layout = QVBoxLayout()
         shadow_group_layout.setContentsMargins(8, 8, 8, 8)
@@ -1002,6 +1014,7 @@ class MainWindow(QMainWindow):
         self.shadow_opacity_slider.setEnabled(checked)
         self.shadow_opacity_spin.setEnabled(checked)
         self.sw_shadow.setEnabled(checked)
+        self.quick_black_btn.setEnabled(checked)
 
     def on_shadow_distance_changed(self, value: int):
         st = self.current_style()
@@ -1135,6 +1148,22 @@ class MainWindow(QMainWindow):
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
+    def set_shadow_to_black(self):
+        st = self.current_style()
+        if not st:
+            return
+
+        # 1. Get the current shadow color to preserve its alpha (transparency)
+        current = style_get_color(st, "BackColour") or (0, 0, 0, 0)
+        _, _, _, a = current
+
+        # 2. Apply pure black (R:0, G:0, B:0) while keeping the current alpha
+        style_set_color(st, "BackColour", (0, 0, 0, a))
+
+        # 3. Trigger the UI to instantly update the Swatch label and Preview window
+        self.on_style_selected(self.styles_list.currentRow())
+        self.preview.update()
+
     def save_as(self):
         if not self.doc or not self.current_path:
             return
@@ -1165,7 +1194,7 @@ class MainWindow(QMainWindow):
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #788A96;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.7.1.<br>"
+            + "Version 1.7.2.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "See licenses folder for details."
         )
