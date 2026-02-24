@@ -686,7 +686,7 @@ class DropWidget(QWidget):
         super().__init__()
         self.setAcceptDrops(True)
 
-        self.label = QLabel("Drag & drop an .ass file here\n—or click Open…")
+        self.label = QLabel("Drag & drop an .ass file anywhere\n—or click Open…")
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet("font-size: 16px; padding: 18px; color: white;")
 
@@ -734,6 +734,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("ChromaLyric")
         self.resize(1220, 780)
+        self.setAcceptDrops(True)
 
         self.doc: Optional[AssDoc] = None
         self.current_path: Optional[str] = None
@@ -1264,6 +1265,24 @@ class MainWindow(QMainWindow):
         else:
             # Move the slider forward by 1% every 20ms
             self.k_slider.setValue(val + 1)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            if any(
+                u.isLocalFile() and is_supported_file(u.toLocalFile())
+                for u in event.mimeData().urls()
+            ):
+                event.acceptProposedAction()
+                return
+            event.ignore()
+
+    def dropEvent(self, event):
+        for u in event.mimeData().urls():
+            if u.isLocalFile() and is_supported_file(u.toLocalFile()):
+                self.load_ass(u.toLocalFile())  # Instantly loads the file!
+                event.acceptProposedAction()
+                return
+        event.ignore()
 
 
 def main():
