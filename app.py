@@ -60,6 +60,8 @@ def resource_path(relative: str) -> str:
 # -----------------------------
 
 CSS_COLOR_HEX = {
+    # --- Easter Eggs & Creator Colors ---
+    "Matt Joy Slate": "#788A96",
     # --- Creator & Brand Colors ---
     "Spotify Green": "#1DB954",
     "Twitch Purple": "#9146FF",
@@ -1162,8 +1164,8 @@ class MainWindow(QMainWindow):
 
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
-            + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #87CEEB;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.7.0.<br>"
+            + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #788A96;">youtube.com/@MattJoyKaraoke</a><br><br>'
+            + "Version 1.7.1.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "See licenses folder for details."
         )
