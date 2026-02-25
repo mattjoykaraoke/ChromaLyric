@@ -769,10 +769,13 @@ class MainWindow(QMainWindow):
         left = QVBoxLayout()
         left.addWidget(self.drop)
 
-        styles_lbl = QLabel("Styles:")
-        styles_lbl.setStyleSheet("font-size: 14px; font-weight: 700;")
-        left.addWidget(styles_lbl)
-        left.addWidget(self.styles_list)
+        # Wrap the styles list in a QGroupBox to match the Theme Library
+        self.styles_group = QGroupBox("Styles")
+        styles_layout = QVBoxLayout()
+        styles_layout.addWidget(self.styles_list)
+        self.styles_group.setLayout(styles_layout)
+
+        left.addWidget(self.styles_group)
 
         # --- Theme Library UI ---
         self.preset_group = QGroupBox("Theme Library")
