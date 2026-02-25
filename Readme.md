@@ -8,7 +8,7 @@
 <p align="center">
     ChromaLyric is a desktop tool for previewing and editing ASS (Advanced SubStation Alpha) subtitle style colors with a real-time karaoke visualization.
     Built for karaoke creators and subtitle stylists who want fast, accurate color iteration without rendering video.
-</p
+</p>
 <p align="center">
   <img src="assets/ChromaLyricLogo.png" width="550">
 </p>
@@ -22,6 +22,9 @@ ChromaLyric focuses on style-level editing inside .ass subtitle files:
 • 🎚 Adjustable karaoke progress swipe
 • 🧾 Load and save .ass files directly
 • 🖱 Drag & drop support
+• 📚 Theme Library: Save your favorite color combinations as reusable presets.
+• 💾 Persistent Memory: Custom color picker slots and saved themes persist across app restarts natively on your OS.
+• 🔄 Import & Export: Share your custom creator color packs via .json files.
 __________________________________________________________________________________________
 🎵 Karaoke Mode (Always Enabled)
 ChromaLyric uses a simplified and predictable karaoke preview model:
@@ -43,6 +46,13 @@ The preview:
 Zoom control:
 • 100% = calibrated baseline (optimized for 1080p-style ASS usage)
 • Adjustable from 25% to 250%
+__________________________________________________________________________________________
+📚 The Theme Library
+ChromaLyric includes a built-in Preset Manager to speed up your workflow:
+• Dial in your Highlight, Base, Outline, and Shadow colors.
+• Click "Save Current" to add it to your persistent library.
+• Double-click any saved preset to instantly apply it to your current ASS style.
+• Export your library as a `.json` file to back it up or share it with other creators.
 __________________________________________________________________________________________
 📂 Supported File Type
 • .ass (Advanced SubStation Alpha)

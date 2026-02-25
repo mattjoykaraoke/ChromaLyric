@@ -2,6 +2,29 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.8.0] - 2026-02-24
+
+### Added
+- **Theme Library**: Save your perfect Highlight, Base, and Outline color combinations as custom presets. Dial in your style and hit "Save Current" to add it to your persistent library on the left sidebar.
+- **Double-Click to Apply**: Instantly snap your current `.ass` style to any saved theme just by double-clicking it in your library.
+- **Theme Management Context Menu**: Right-click any preset in your library to **Rename**, **Delete**, or instantly **Update** it with the colors currently active in your swatches.
+- **Import & Export Themes**: Click the new gear icon (`⚙`) next to the save button to export your Theme Library as a `.json` file. Back up your favorite styles, move them between computers, or share your custom creator packs with the community!
+
+### Changed
+- **Persistent Color Picker Slots**: The 16 "Custom Color" squares at the bottom of the system `QColorDialog` will now remember your saved shades across sessions.
+- **Native OS Memory**: Themes and custom colors are now saved natively to your operating system via `QSettings` (Windows Registry), ensuring your library is completely safe and persistent across future ChromaLyric `.exe` updates.
+
+## [1.7.2] - 2026-02-23
+
+### Added
+- **Set Shadow to Black Button:** Most people use black shadows but KBS makes it a dark brown for some reason. Why waste time with more than one click to make it black?
+
+## [1.7.1] - 2026-02-23
+
+### Added
+- **Global Drag-and-Drop:** You can now drag and drop `.ass` files anywhere inside the application window to instantly load them, removing the need to aim for the corner dropzone.
+- **Color Names:** So many color names from the 140 CSS named colors + easter eggs to find.
+
 ## [1.7.0] - 2026-02-23
 
 ### Added

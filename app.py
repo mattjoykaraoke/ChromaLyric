@@ -1261,7 +1261,7 @@ class MainWindow(QMainWindow):
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #788A96;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.7.2.<br>"
+            + "Version 1.8.0.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "See licenses folder for details."
         )

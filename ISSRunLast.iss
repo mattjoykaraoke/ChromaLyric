@@ -7,7 +7,7 @@
 #define AppName "ChromaLyric"
 #define AppPublisher "Matt Joy"
 #define AppExeName "ChromaLyric.exe"
-#define AppVersion "1.7.0"
+#define AppVersion "1.8.0"
 
 [Setup]
 AppId={{D1D77C0F-3AF1-4E73-9E1B-6C0F8D7B1F1B}
