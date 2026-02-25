@@ -790,11 +790,27 @@ class MainWindow(QMainWindow):
             self.show_preset_context_menu
         )
 
-        self.save_preset_btn = QPushButton("💾 Save Current as Preset")
+        self.save_preset_btn = QPushButton("💾 Save Current")
         self.save_preset_btn.clicked.connect(self.save_new_preset)
 
+        self.lib_options_btn = QPushButton("⚙")
+        self.lib_options_btn.setFixedWidth(36)
+
+        # Build the dropdown menu for the gear button
+        self.lib_menu = QMenu(self)
+        export_act = self.lib_menu.addAction("Export Library...")
+        export_act.triggered.connect(self.export_presets)
+        import_act = self.lib_menu.addAction("Import Library...")
+        import_act.triggered.connect(self.import_presets)
+        self.lib_options_btn.setMenu(self.lib_menu)
+
+        # Put them side-by-side
+        lib_btn_row = QHBoxLayout()
+        lib_btn_row.addWidget(self.save_preset_btn)
+        lib_btn_row.addWidget(self.lib_options_btn)
+
         preset_layout.addWidget(self.preset_list)
-        preset_layout.addWidget(self.save_preset_btn)
+        preset_layout.addLayout(lib_btn_row)
         self.preset_group.setLayout(preset_layout)
 
         left.addWidget(self.preset_group)
@@ -1448,6 +1464,62 @@ class MainWindow(QMainWindow):
             self.presets.pop(row)
             self.preset_list.takeItem(row)
             self.save_presets_to_storage()
+
+    def export_presets(self):
+        if not self.presets:
+            QMessageBox.information(
+                self, "Empty Library", "There are no presets to export."
+            )
+            return
+
+        out_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Theme Library",
+            "ChromaLyric_Themes.json",
+            "JSON Files (*.json)",
+        )
+        if out_path:
+            try:
+                with open(out_path, "w", encoding="utf-8") as f:
+                    json.dump(self.presets, f, indent=4)
+                QMessageBox.information(
+                    self, "Success", "Theme Library exported successfully!"
+                )
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Export Error", f"Failed to export themes:\n{str(e)}"
+                )
+
+    def import_presets(self):
+        in_path, _ = QFileDialog.getOpenFileName(
+            self, "Import Theme Library", "", "JSON Files (*.json)"
+        )
+        if in_path:
+            try:
+                with open(in_path, "r", encoding="utf-8") as f:
+                    imported_data = json.load(f)
+
+                # Basic validation to ensure it's a list of dictionaries
+                if isinstance(imported_data, list) and all(
+                    "name" in item for item in imported_data
+                ):
+                    self.presets.extend(imported_data)  # Add them to the existing list
+                    self.save_presets_to_storage()  # Save to registry
+                    self.load_presets()  # Refresh the UI list
+                    QMessageBox.information(
+                        self, "Success", f"Imported {len(imported_data)} themes!"
+                    )
+                else:
+                    QMessageBox.warning(
+                        self,
+                        "Invalid File",
+                        "This file does not contain valid ChromaLyric themes.",
+                    )
+
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Import Error", f"Failed to import themes:\n{str(e)}"
+                )
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
