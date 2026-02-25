@@ -803,6 +803,7 @@ class MainWindow(QMainWindow):
         self.settings = QSettings("MattJoy", "ChromaLyric")
         self.presets = []
         self.load_presets()
+        self.load_custom_colors()
 
         left.addStretch(1)  # push About to bottom
         left.addWidget(self.about_btn, alignment=Qt.AlignLeft)
@@ -1187,6 +1188,13 @@ class MainWindow(QMainWindow):
         if not chosen.isValid():
             return
 
+        # --- NEW: Save the custom squares every time the dialog is used ---
+        self.save_custom_colors()
+
+        style_set_color(st, key, (chosen.red(), chosen.green(), chosen.blue(), a))
+        self.on_style_selected(self.styles_list.currentRow())
+        self.preview.update()
+
         style_set_color(st, key, (chosen.red(), chosen.green(), chosen.blue(), a))
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
@@ -1450,6 +1458,21 @@ class MainWindow(QMainWindow):
                 event.acceptProposedAction()
                 return
             event.ignore()
+
+    def load_custom_colors(self):
+        # QColorDialog usually has 16 custom slots
+        saved_colors = self.settings.value("custom_colors", [])
+        for i, hex_val in enumerate(saved_colors):
+            if i < QColorDialog.customCount():
+                QColorDialog.setCustomColor(i, QColor(hex_val))
+
+    def save_custom_colors(self):
+        custom_colors = []
+        for i in range(QColorDialog.customCount()):
+            color = QColorDialog.customColor(i)
+            custom_colors.append(color.name())  # Saves as '#RRGGBB'
+
+        self.settings.setValue("custom_colors", custom_colors)
 
     def dropEvent(self, event):
         for u in event.mimeData().urls():
