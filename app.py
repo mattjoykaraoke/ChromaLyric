@@ -63,6 +63,16 @@ CSS_COLOR_HEX = {
     # --- Easter Eggs & Creator Colors ---
     "Matt Joy Slate": "#788A96",
     "Nox Black": "#000001",
+    "It Could Be Teal": "#17CDBE",
+    "Hal Jam Blue": "#0072E5",
+    "Fatbird Pink": "#FF9AEB",
+    "diveBar Pink": "#F42C95",
+    "diveBar Blue": "#01A7DC",
+    "Pear Green": "#DBE273",
+    "Junction Blue": "#023358",
+    "Cloud Eleven Blue": "#005A9E",
+    "Cloak Gray": "#B6B6B6",
+    "Untanned Aghastronaut": "#FFF5E5",
     # --- Creator & Brand Colors ---
     "Spotify Green": "#1DB954",
     "Twitch Purple": "#9146FF",
