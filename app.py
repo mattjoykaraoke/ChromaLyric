@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -29,11 +30,13 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QSlider,
@@ -771,6 +774,36 @@ class MainWindow(QMainWindow):
         left.addWidget(styles_lbl)
         left.addWidget(self.styles_list)
 
+        # --- Theme Library UI ---
+        self.preset_group = QGroupBox("Theme Library")
+        preset_layout = QVBoxLayout()
+
+        self.preset_list = QListWidget()
+        self.preset_list.setStyleSheet("font-size: 14px;")
+        self.preset_list.itemDoubleClicked.connect(
+            self.apply_preset
+        )  # Double click to apply
+
+        # Enable Right-Click Menus
+        self.preset_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.preset_list.customContextMenuRequested.connect(
+            self.show_preset_context_menu
+        )
+
+        self.save_preset_btn = QPushButton("💾 Save Current as Preset")
+        self.save_preset_btn.clicked.connect(self.save_new_preset)
+
+        preset_layout.addWidget(self.preset_list)
+        preset_layout.addWidget(self.save_preset_btn)
+        self.preset_group.setLayout(preset_layout)
+
+        left.addWidget(self.preset_group)
+
+        # Initialize the "Memory"
+        self.settings = QSettings("MattJoy", "ChromaLyric")
+        self.presets = []
+        self.load_presets()
+
         left.addStretch(1)  # push About to bottom
         left.addWidget(self.about_btn, alignment=Qt.AlignLeft)
 
@@ -1306,6 +1339,107 @@ class MainWindow(QMainWindow):
         else:
             # Move the slider forward by 1% every 20ms
             self.k_slider.setValue(val + 1)
+
+    # ==========================================
+    # ---- THEME LIBRARY LOGIC (v1.8.0) ----
+    # ==========================================
+
+    def get_current_style_colors(self):
+        st = self.current_style()
+        if not st:
+            return None
+        return {
+            "primary": style_get_color(st, "PrimaryColour") or (255, 255, 255, 0),
+            "secondary": style_get_color(st, "SecondaryColour") or (255, 255, 0, 0),
+            "outline": style_get_color(st, "OutlineColour") or (0, 0, 0, 0),
+        }
+
+    def load_presets(self):
+        self.preset_list.clear()
+        saved_data = self.settings.value("theme_presets", "[]")
+        try:
+            self.presets = json.loads(saved_data)
+        except json.JSONDecodeError:
+            self.presets = []
+
+        for p in self.presets:
+            self.preset_list.addItem(QListWidgetItem(p["name"]))
+
+    def save_presets_to_storage(self):
+        self.settings.setValue("theme_presets", json.dumps(self.presets))
+
+    def save_new_preset(self):
+        colors = self.get_current_style_colors()
+        if not colors:
+            QMessageBox.warning(
+                self, "No Style", "Please select a style first to save its colors."
+            )
+            return
+
+        name, ok = QInputDialog.getText(
+            self, "Save Preset", "Enter a name for this Theme:"
+        )
+        if ok and name.strip():
+            # Create a dictionary with the name and the 3 colors
+            new_preset = {"name": name.strip(), **colors}
+            self.presets.append(new_preset)
+            self.preset_list.addItem(QListWidgetItem(name.strip()))
+            self.save_presets_to_storage()
+
+    def apply_preset(self, item: QListWidgetItem):
+        st = self.current_style()
+        if not st:
+            return
+
+        row = self.preset_list.row(item)
+        preset = self.presets[row]
+
+        style_set_color(st, "PrimaryColour", preset["primary"])
+        style_set_color(st, "SecondaryColour", preset["secondary"])
+        style_set_color(st, "OutlineColour", preset["outline"])
+
+        # Force the UI and Preview to instantly update
+        self.on_style_selected(self.styles_list.currentRow())
+        self.preview.update()
+
+    def show_preset_context_menu(self, pos):
+        item = self.preset_list.itemAt(pos)
+        if not item:
+            return
+
+        menu = QMenu(self)
+        rename_action = menu.addAction("Rename Preset")
+        update_action = menu.addAction("Update with Current Colors")
+        delete_action = menu.addAction("Delete Preset")
+
+        # Show the menu where the mouse clicked
+        action = menu.exec(self.preset_list.mapToGlobal(pos))
+        row = self.preset_list.row(item)
+
+        if action == rename_action:
+            new_name, ok = QInputDialog.getText(
+                self, "Rename Preset", "New name:", text=item.text()
+            )
+            if ok and new_name.strip():
+                self.presets[row]["name"] = new_name.strip()
+                item.setText(new_name.strip())
+                self.save_presets_to_storage()
+
+        elif action == update_action:
+            colors = self.get_current_style_colors()
+            if colors:
+                self.presets[row].update(colors)
+                self.save_presets_to_storage()
+                QMessageBox.information(
+                    self,
+                    "Updated",
+                    f"'{item.text()}' updated with your current swatches.",
+                )
+
+        elif action == delete_action:
+            self.presets.pop(row)
+            self.preset_list.takeItem(row)
+            self.save_presets_to_storage()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
