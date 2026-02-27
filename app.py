@@ -64,7 +64,7 @@ def resource_path(relative: str) -> str:
 
 CSS_COLOR_HEX = {
     # --- Easter Eggs & Creator Colors ---
-    "Matt Joy Slate": "#788A96",
+    "Matt Joy Slate": "#708090",
     "Nox Black": "#000001",
     "It Could Be Teal": "#17CDBE",
     "Hal Jam Blue": "#0072E5",
