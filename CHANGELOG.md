@@ -2,6 +2,15 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.9.0] - 2026-02-27
+
+### Added
+- **ChromaPicker (Image Color Extractor)**: A brand-new floating utility to pull perfect color palettes directly from your reference frames (like anime episodes or music videos). Launch it right from the left sidebar!
+- **Crosshair Pixel Dropper**: Load any `.jpg` or `.png` and click anywhere on the image to extract the exact RGBA pixel data. Large images automatically scale to fit your screen while retaining 1:1 pixel accuracy.
+- **Extracted Palette History**: Every color you click is saved into a running swatch list on the right side of the picker, complete with its exact Hex code.
+- **One-Click Quick Transfer**: Instantly route any extracted color to your current style. Use the `H`, `B`, `O`, `S`, or `BG` buttons to instantly push the color to your Highlight, Base, Outline, Shadow, or Preview Background.
+- **Live UI Syncing**: Because the ChromaPicker floats over the main application, routing a color instantly updates the main preview window and your custom swatch memory without interrupting your workflow.
+
 ## [1.8.1] - 2026-02-27
 
 ### Added

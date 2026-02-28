@@ -17,6 +17,12 @@
 
 __________________________________________________________________________________________
 
+### 📸 Main App Screenshot
+
+![ChromaLyric Screenshot](assets/Screenshot1.png)
+
+__________________________________________________________________________________________
+
 ### ✨ What It Does
 ChromaLyric focuses on style-level editing inside .ass subtitle files:
 
@@ -64,6 +70,18 @@ ChromaLyric includes a built-in Preset Manager to speed up your workflow:
 * Click **"Save Current"** to add it to your persistent library.
 * Double-click any saved preset to instantly apply it to your current ASS style.
 * Export your library as a `.json` file to back it up or share it.
+
+__________________________________________________________________________________________
+
+### 👁️ ChromaPicker (Image Color Extractor)
+Stop guessing hex codes. ChromaLyric 1.9.0 introduces a built-in, floating color extractor designed specifically for matching your karaoke styles to music video frames or anime episodes.
+
+* **Pixel-Perfect Extraction:** Load any `.jpg` or `.png` reference frame and click anywhere with the crosshair to grab the exact RGBA color.
+* **Extracted Palette History:** Every color you click is saved into a running swatch list alongside its exact hex code.
+* **One-Click Routing:** Instantly send any extracted color directly to your active `.ass` style using the quick-transfer buttons: Highlight (H), Base (B), Outline (O), Shadow (S), or Preview Background (BG).
+* **Live UI Syncing:** The picker floats over your workspace, meaning your main preview window updates in real-time as you route colors—no closing dialogs or copy-pasting required.
+
+![ChromaLyric Screenshot](assets/Screenshot2.png)
 
 __________________________________________________________________________________________
 
@@ -126,9 +144,3 @@ ________________________________________________________________________________
 
 ### 💡 Design Philosophy
 ChromaLyric is intentionally focused and lightweight. It exists to make color experimentation fast and provide visual confidence before rendering.
-
-__________________________________________________________________________________________
-
-### 📸 Screenshot
-
-![ChromaLyric Screenshot](assets/Screenshot1.png)
