@@ -874,9 +874,14 @@ class ChromaPickerWindow(QDialog):
             "QDialog { background-color: #1E1E1E; color: white; } QLabel { color: white; }"
         )
 
+        # --- NEW: Enable drag and drop on this window ---
+        self.setAcceptDrops(True)
+
         # Left Side (Image)
         self.dropper = ImageDropper()
         self.dropper.colorPicked.connect(self.add_color_to_list)
+        # Update the helper text to mention drag & drop
+        self.dropper.setText("Click 'Load Image' or Drag & Drop here to begin")
 
         self.load_btn = QPushButton("📂 Load Image (JPG/PNG)")
         self.load_btn.setFixedHeight(35)
@@ -924,6 +929,29 @@ class ChromaPickerWindow(QDialog):
         item.setSizeHint(widget.sizeHint())
         self.color_list.insertItem(0, item)  # Insert at top
         self.color_list.setItemWidget(item, widget)
+
+    # --- NEW: Drag and Drop Event Handlers ---
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            # Check if any of the dropped items are valid image files
+            for url in event.mimeData().urls():
+                if url.isLocalFile():
+                    ext = Path(url.toLocalFile()).suffix.lower()
+                    if ext in [".png", ".jpg", ".jpeg"]:
+                        event.acceptProposedAction()
+                        return
+        event.ignore()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            if url.isLocalFile():
+                path = url.toLocalFile()
+                ext = Path(path).suffix.lower()
+                if ext in [".png", ".jpg", ".jpeg"]:
+                    self.dropper.load_image(path)
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
 
 
 # -----------------------------
@@ -1501,7 +1529,7 @@ class MainWindow(QMainWindow):
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #788A96;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.9.0.<br>"
+            + "Version 1.9.1.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "See licenses folder for details."
         )

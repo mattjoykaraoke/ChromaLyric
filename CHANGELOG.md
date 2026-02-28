@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.9.1] - 2026-02-28
+
+### Added
+- **Drag-and-Drop Image Loading**: Skip the file browser entirely. You can now drag `.jpg` or `.png` reference frames directly from your file explorer anywhere into the ChromaPicker window to instantly load them for extraction.
+
 ## [1.9.0] - 2026-02-27
 
 ### Added
