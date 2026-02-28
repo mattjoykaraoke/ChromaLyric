@@ -1441,20 +1441,34 @@ class MainWindow(QMainWindow):
 
         st = self.current_style()
         if not st:
-            QMessageBox.warning(self, "No Style", "Please select an ASS style first!")
-            return
+            # Create a custom message box
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("No Style Loaded")
+            msg_box.setText("Please load an .ass file first!")
+            msg_box.setIcon(QMessageBox.Warning)
 
-        # Keep the existing alpha/transparency of the target color
+            # Add our custom buttons
+            load_btn = msg_box.addButton("Load an .ass file", QMessageBox.ActionRole)
+            cancel_btn = msg_box.addButton("Cancel", QMessageBox.RejectRole)
+
+            # Show the box and wait for a click
+            msg_box.exec()
+
+            # If they clicked load, trigger your existing DropWidget file browser!
+            if msg_box.clickedButton() == load_btn:
+                self.drop.open_file_dialog()
+
+            return  # Stop executing the color transfer either way
+
+        # Keep the existing alpha value of the target color
         current = style_get_color(st, target) or (255, 255, 255, 0)
         alpha = current[3]
 
-        # Apply the new color
         style_set_color(st, target, (color.red(), color.green(), color.blue(), alpha))
 
-        # Save to the QColorDialog custom swatches memory
+        # Save to the custom color dialog history
         self.save_custom_colors()
 
-        # Force UI update
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
@@ -1841,30 +1855,6 @@ def open_chroma_picker(self):
     picker = ChromaPickerWindow(self)
     picker.colorTransferred.connect(self.receive_chromapicker_color)
     picker.show()  # Use .show() instead of .exec() so it stays open while you work!
-
-
-def receive_chromapicker_color(self, target: str, color: QColor):
-    if target == "Background":
-        self.preview.set_bg_color(color)
-        self.bg_hex.setText(color.name().upper())
-        return
-
-    st = self.current_style()
-    if not st:
-        QMessageBox.warning(self, "No Style", "Please select an ASS style first!")
-        return
-
-    # Keep the existing alpha value of the target color
-    current = style_get_color(st, target) or (255, 255, 255, 0)
-    alpha = current[3]
-
-    style_set_color(st, target, (color.red(), color.green(), color.blue(), alpha))
-
-    # Save to the custom color dialog history for good measure
-    self.save_custom_colors()
-
-    self.on_style_selected(self.styles_list.currentRow())
-    self.preview.update()
 
 
 def main():

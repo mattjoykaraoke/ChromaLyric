@@ -7,6 +7,9 @@ All notable changes to ChromaLyric will be documented in this file.
 ### Added
 - **Drag-and-Drop Image Loading**: Skip the file browser entirely. You can now drag `.jpg` or `.png` reference frames directly from your file explorer anywhere into the ChromaPicker window to instantly load them for extraction.
 
+### Changed
+- **Smart Error Handling**: Sending a color from the ChromaPicker without an active style no longer throws a dead-end warning. Instead, it gracefully prompts you with a custom menu that lets you instantly browse and load an `.ass` file right from the alert.
+
 ## [1.9.0] - 2026-02-27
 
 ### Added
