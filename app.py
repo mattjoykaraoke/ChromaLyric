@@ -76,6 +76,7 @@ CSS_COLOR_HEX = {
     "Cloud Eleven Blue": "#005A9E",
     "Cloak Gray": "#B6B6B6",
     "Untanned Aghastronaut": "#FFF5E5",
+    "Rank Amateur Feelgood Purpureus": "#9500b3",
     # --- Creator & Brand Colors ---
     "Spotify Green": "#1DB954",
     "Twitch Purple": "#9146FF",
