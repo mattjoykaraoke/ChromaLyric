@@ -1380,6 +1380,9 @@ class MainWindow(QMainWindow):
             "primary": style_get_color(st, "PrimaryColour") or (255, 255, 255, 0),
             "secondary": style_get_color(st, "SecondaryColour") or (255, 255, 0, 0),
             "outline": style_get_color(st, "OutlineColour") or (0, 0, 0, 0),
+            "shadow_color": style_get_color(st, "BackColour") or (0, 0, 0, 0),
+            "outline_thick": style_get_int(st, "Outline", 0),
+            "shadow_dist": style_get_int(st, "Shadow", 0),
         }
 
     def load_presets(self):
@@ -1422,11 +1425,22 @@ class MainWindow(QMainWindow):
         row = self.preset_list.row(item)
         preset = self.presets[row]
 
+        # 1. Apply the 3 core colors
         style_set_color(st, "PrimaryColour", preset["primary"])
         style_set_color(st, "SecondaryColour", preset["secondary"])
         style_set_color(st, "OutlineColour", preset["outline"])
 
-        # Force the UI and Preview to instantly update
+        # 2. Apply Shadow Color (if the preset has it)
+        if "shadow_color" in preset:
+            style_set_color(st, "BackColour", preset["shadow_color"])
+
+        # 3. Apply Thickness and Distance (if the preset has them)
+        if "outline_thick" in preset:
+            st.fields["Outline"] = str(preset["outline_thick"])
+        if "shadow_dist" in preset:
+            st.fields["Shadow"] = str(preset["shadow_dist"])
+
+        # 4. Refresh UI (Updates Swatches, Spinboxes, and the Preview)
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
