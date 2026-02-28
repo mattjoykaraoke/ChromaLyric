@@ -2,6 +2,14 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.8.1] - 2026-02-27
+
+### Added
+- **Full Style Presets**: Theme Library now captures the complete visual identity of a style. In addition to colors, presets now save and restore Outline Thickness, Shadow Distance, and Shadow Transparency.
+
+### Changed
+- **Robust Color Parsing**: Implemented "Safe" color collection with hex-based fallbacks to prevent application crashes when interacting with malformed or incomplete .ass style definitions.
+
 ## [1.8.0] - 2026-02-24
 
 ### Added
