@@ -9,6 +9,7 @@ All notable changes to ChromaLyric will be documented in this file.
 
 ### Changed
 - **Smart Error Handling**: Sending a color from the ChromaPicker without an active style no longer throws a dead-end warning. Instead, it gracefully prompts you with a custom menu that lets you instantly browse and load an `.ass` file right from the alert.
+- **ChromaPicker Persistence**: You can now close and open ChromaPicker per session without losing the image and palette data.
 
 ## [1.9.0] - 2026-02-27
 

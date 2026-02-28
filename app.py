@@ -969,6 +969,8 @@ class MainWindow(QMainWindow):
         self.doc: Optional[AssDoc] = None
         self.current_path: Optional[str] = None
 
+        self.picker = None
+
         # Left
         self.drop = DropWidget()
         self.drop.fileDropped.connect(self.load_ass)
@@ -1428,10 +1430,15 @@ class MainWindow(QMainWindow):
             self.shadow_opacity_slider.blockSignals(False)
 
     def open_chroma_picker(self):
-        picker = ChromaPickerWindow(self)
-        # Connect the picker's output to our receive function
-        picker.colorTransferred.connect(self.receive_chromapicker_color)
-        picker.show()  # .show() makes it float so you can use the main window at the same time
+        # Create the window only if it doesn't already exist
+        if not self.picker:
+            self.picker = ChromaPickerWindow(self)
+            self.picker.colorTransferred.connect(self.receive_chromapicker_color)
+
+        # Show the window and force it to the front
+        self.picker.show()
+        self.picker.raise_()
+        self.picker.activateWindow()
 
     def receive_chromapicker_color(self, target: str, color: QColor):
         if target == "Background":
@@ -1849,12 +1856,6 @@ class MainWindow(QMainWindow):
                 event.acceptProposedAction()
                 return
         event.ignore()
-
-
-def open_chroma_picker(self):
-    picker = ChromaPickerWindow(self)
-    picker.colorTransferred.connect(self.receive_chromapicker_color)
-    picker.show()  # Use .show() instead of .exec() so it stays open while you work!
 
 
 def main():
