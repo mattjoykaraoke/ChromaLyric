@@ -357,9 +357,6 @@ class AssStyle:
     fields: Dict[str, str]
 
 
-from typing import Dict, List, Optional, Tuple  # Ensure Tuple & Dict are imported!
-
-
 @dataclass
 class AssDoc:
     lines: List[str]
@@ -534,7 +531,7 @@ class AssPreviewWidget(QWidget):
         self.setMinimumHeight(520)
 
         self.sample_text = "Sample Text  AaBb  123  ♪"
-        self.style: Optional[AssStyle] = None
+        self.ass_style: Optional[AssStyle] = None
         self.preview_scale = BASE_PREVIEW_SCALE  # "effective zoom"
         self.bg_color = QColor(30, 30, 30)
 
@@ -542,7 +539,7 @@ class AssPreviewWidget(QWidget):
         self.karaoke_progress = 0.35  # 0..1
 
     def set_style(self, style: Optional[AssStyle]):
-        self.style = style
+        self.ass_style = style
         self.update()
 
     def set_text(self, text: str):
@@ -564,16 +561,18 @@ class AssPreviewWidget(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
+        p.setRenderHints(
+            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing
+        )
 
         # EXACT background color across the entire preview area
         p.fillRect(self.rect(), self.bg_color)
 
-        if not self.style:
+        if not self.ass_style:
             p.end()
             return
 
-        st = self.style
+        st = self.ass_style
 
         # Workflow mapping:
         # - Base (unhighlighted) = SecondaryColour
@@ -657,7 +656,11 @@ class AssPreviewWidget(QWidget):
             # Outline
             if outline_w > 0.0 and outl_q.alpha() > 0:
                 pen = QPen(
-                    outl_q, outline_w * 2.0, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin
+                    outl_q,
+                    outline_w * 2.0,
+                    Qt.PenStyle.SolidLine,
+                    Qt.PenCapStyle.RoundCap,
+                    Qt.PenJoinStyle.RoundJoin,
                 )
                 p.strokePath(path, pen)
 
@@ -692,7 +695,7 @@ class SwatchControl(QWidget):
         self._rgba: Optional[Tuple[int, int, int, int]] = None
 
         self.title_lbl = QLabel(title)
-        self.title_lbl.setAlignment(Qt.AlignCenter)
+        self.title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_lbl.setStyleSheet("color: white; font-weight: 800; font-size: 14px;")
 
         self.swatch_btn = QPushButton("")
@@ -700,7 +703,7 @@ class SwatchControl(QWidget):
         self.swatch_btn.clicked.connect(self.clicked.emit)
 
         self.name_lbl = QLabel("")
-        self.name_lbl.setAlignment(Qt.AlignCenter)
+        self.name_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_lbl.setStyleSheet("color: white; font-weight: 600; font-size: 13px;")
 
         layout = QVBoxLayout()
@@ -745,7 +748,7 @@ class DropWidget(QWidget):
         self.setAcceptDrops(True)
 
         self.label = QLabel("Drag & drop an .ass file anywhere\n—or click Open…")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label.setStyleSheet("font-size: 16px; padding: 18px; color: white;")
 
         self.open_btn = QPushButton("Open…")
@@ -753,7 +756,7 @@ class DropWidget(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
-        layout.addWidget(self.open_btn, alignment=Qt.AlignCenter)
+        layout.addWidget(self.open_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         self.setLayout(layout)
 
     def open_file_dialog(self):
@@ -789,8 +792,8 @@ class ImageDropper(QLabel):
 
     def __init__(self):
         super().__init__()
-        self.setAlignment(Qt.AlignCenter)
-        self.setCursor(Qt.CrossCursor)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setCursor(Qt.CursorShape.CrossCursor)
         self.setMinimumSize(400, 300)
         self.setStyleSheet("border: 2px dashed #444; background-color: #121212;")
         self.setText("Click 'Load Image' to begin")
@@ -807,11 +810,16 @@ class ImageDropper(QLabel):
             self.update_image()
 
     def update_image(self):
-        if self.source_image.isNull():
+        # Add the explicit 'is None' check for the linter
+        if self.source_image is None or self.source_image.isNull():
             return
-        # Scale image to fit the label while keeping aspect ratio
+
+        # Add the AspectRatioMode and TransformationMode enums
         self.scaled_image = self.source_image.scaled(
-            self.width(), self.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            self.width(),
+            self.height(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
         )
         self.setPixmap(QPixmap.fromImage(self.scaled_image))
 
@@ -1036,7 +1044,7 @@ class MainWindow(QMainWindow):
         )  # Double click to apply
 
         # Enable Right-Click Menus
-        self.preset_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.preset_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.preset_list.customContextMenuRequested.connect(
             self.show_preset_context_menu
         )
@@ -1089,7 +1097,7 @@ class MainWindow(QMainWindow):
         self.load_custom_colors()
 
         left.addStretch(1)  # push About to bottom
-        left.addWidget(self.about_btn, alignment=Qt.AlignLeft)
+        left.addWidget(self.about_btn, alignment=Qt.AlignmentFlag.AlignLeft)
 
         left_wrap = QWidget()
         left_wrap.setLayout(left)
@@ -1112,7 +1120,7 @@ class MainWindow(QMainWindow):
         self.use_first_line_btn.setEnabled(False)
 
         # Zoom: percentage is relative to BASE_PREVIEW_SCALE
-        self.zoom_slider = QSlider(Qt.Horizontal)
+        self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
         self.zoom_slider.setMinimum(25)
         self.zoom_slider.setMaximum(250)
         self.zoom_slider.setValue(100)
@@ -1133,7 +1141,7 @@ class MainWindow(QMainWindow):
         self.bg_pick_btn.clicked.connect(self.pick_bg)
 
         # Karaoke progress (always enabled)
-        self.k_slider = QSlider(Qt.Horizontal)
+        self.k_slider = QSlider(Qt.Orientation.Horizontal)
         self.k_slider.setMinimum(0)
         self.k_slider.setMaximum(100)
         self.k_slider.setValue(35)
@@ -1212,7 +1220,7 @@ class MainWindow(QMainWindow):
         self.shadow_distance.valueChanged.connect(self.on_shadow_distance_changed)
 
         # Opacity percent slider + spinbox combo
-        self.shadow_opacity_slider = QSlider(Qt.Horizontal)
+        self.shadow_opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.shadow_opacity_slider.setRange(0, 100)
 
         self.shadow_opacity_spin = QSpinBox()
@@ -1259,7 +1267,9 @@ class MainWindow(QMainWindow):
         # Put the Swatch and the Button side-by-side
         shadow_row3 = QHBoxLayout()
         shadow_row3.addWidget(self.sw_shadow)
-        shadow_row3.addWidget(self.quick_black_btn, alignment=Qt.AlignVCenter)
+        shadow_row3.addWidget(
+            self.quick_black_btn, alignment=Qt.AlignmentFlag.AlignVCenter
+        )
         shadow_body_layout.addLayout(shadow_row3)
 
         self.shadow_body.setLayout(shadow_body_layout)
@@ -1288,7 +1298,9 @@ class MainWindow(QMainWindow):
         outline_row.setSpacing(8)
         outline_row.addWidget(self.sw_outline)
 
-        outline_row.addWidget(self.outline_spin, alignment=Qt.AlignVCenter)
+        outline_row.addWidget(
+            self.outline_spin, alignment=Qt.AlignmentFlag.AlignVCenter
+        )
 
         outline_container = QWidget()
         outline_container.setLayout(outline_row)
@@ -1306,7 +1318,7 @@ class MainWindow(QMainWindow):
         right.addWidget(colors_box, stretch=1)
         right.addWidget(self.shadow_group, stretch=0)
         right.addStretch(0)
-        right.addWidget(self.save_as_btn, alignment=Qt.AlignRight)
+        right.addWidget(self.save_as_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
         right_wrap = QWidget()
         right_wrap.setLayout(right)
@@ -1484,11 +1496,13 @@ class MainWindow(QMainWindow):
             msg_box = QMessageBox(self)
             msg_box.setWindowTitle("No Style Loaded")
             msg_box.setText("Please load an .ass file first!")
-            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setIcon(QMessageBox.Icon.Warning)
 
             # Add our custom buttons
-            load_btn = msg_box.addButton("Load an .ass file", QMessageBox.ActionRole)
-            cancel_btn = msg_box.addButton("Cancel", QMessageBox.RejectRole)
+            load_btn = msg_box.addButton(
+                "Load an .ass file", QMessageBox.ButtonRole.ActionRole
+            )
+            cancel_btn = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
 
             # Show the box and wait for a click
             msg_box.exec()
@@ -1575,9 +1589,14 @@ class MainWindow(QMainWindow):
         logo = QLabel()
         pix = QPixmap(resource_path("assets/ChromaLyricLogo.png"))
         if not pix.isNull():
-            pix = pix.scaled(520, 220, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pix = pix.scaled(
+                520,
+                220,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
             logo.setPixmap(pix)
-        logo.setAlignment(Qt.AlignCenter)
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
@@ -1588,7 +1607,7 @@ class MainWindow(QMainWindow):
             + "See licenses folder for details."
         )
         text_lbl.setOpenExternalLinks(True)
-        text_lbl.setAlignment(Qt.AlignCenter)
+        text_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text_lbl.setStyleSheet("font-size: 14px; color: white;")
 
         ok = QPushButton("OK")
@@ -1599,7 +1618,7 @@ class MainWindow(QMainWindow):
         lay.setSpacing(12)
         lay.addWidget(logo)
         lay.addWidget(text_lbl)
-        lay.addWidget(ok, alignment=Qt.AlignCenter)
+        lay.addWidget(ok, alignment=Qt.AlignmentFlag.AlignCenter)
 
         dlg.setLayout(lay)
         dlg.setStyleSheet("""
@@ -1705,7 +1724,7 @@ class MainWindow(QMainWindow):
 
     def load_presets(self):
         self.preset_list.clear()
-        saved_data = self.settings.value("theme_presets", "[]")
+        saved_data = str(self.settings.value("theme_presets", "[]"))
         try:
             self.presets = json.loads(saved_data)
         except json.JSONDecodeError:
@@ -1869,7 +1888,7 @@ class MainWindow(QMainWindow):
 
     def load_custom_colors(self):
         # QColorDialog usually has 16 custom slots
-        saved_colors = self.settings.value("custom_colors", [])
+        saved_colors = list(self.settings.value("custom_colors", []))  # type: ignore
         for i, hex_val in enumerate(saved_colors):
             if i < QColorDialog.customCount():
                 QColorDialog.setCustomColor(i, QColor(hex_val))

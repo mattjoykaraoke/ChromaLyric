@@ -2,6 +2,19 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.9.2] - 2026-02-28
+
+### Added
+- **Massive Color Database**: Integrated the meodai/color-names library, expanding the naming engine to include over 31,000+ community-curated color names.
+- **Brand Color Priority**: Established a dedicated "Creator & Brand Colors" section to ensure custom names and easter eggs always take precedence over the community database.
+- **Strict Type Safety**: Implemented explicit string casting and type hinting for the Theme Library and Custom Color loaders to ensure 100% reliable data recovery from the Windows Registry.
+
+### Changed
+- **PySide6 (Qt6) Migration**: Refactored the entire codebase to be fully compliant with modern PySide6 standards. All UI and rendering logic now utilizes strict Qt6 enum namespaces for better performance and future-proofing.
+- **Critical Rendering Collision**: Renamed the internal style variable to ass_style to resolve a conflict with the native QWidget.style() method, preventing potential application crashes during UI redrawing.
+- **Linter Cleanup**: Resolved critical errors, including fixed antialiasing flags and proper context menu policies.
+- **Redundant Imports**: Removed duplicate typing declarations to improve code readability and execution speed.
+
 ## [1.9.1] - 2026-02-28
 
 ### Added
