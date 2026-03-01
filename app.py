@@ -68,176 +68,8 @@ def resource_path(relative: str) -> str:
 
 
 # -----------------------------
-# Color naming (native): nearest CSS-ish color name
+# Color naming (dynamic JSON loader)
 # -----------------------------
-
-CSS_COLOR_HEX = {
-    # --- Easter Eggs & Creator Colors ---
-    "Matt Joy Slate": "#708090",
-    "Nox Black": "#000001",
-    "It Could Be Teal": "#17CDBE",
-    "Hal Jam Blue": "#0072E5",
-    "Fatbird Pink": "#FF9AEB",
-    "diveBar Pink": "#F42C95",
-    "diveBar Blue": "#01A7DC",
-    "Pear Green": "#DBE273",
-    "Junction Blue": "#023358",
-    "Cloud Eleven Blue": "#005A9E",
-    "Cloak Gray": "#B6B6B6",
-    "Untanned Aghastronaut": "#FFF5E5",
-    "Rank Amateur Feelgood Purpureus": "#9500b3",
-    # --- Creator & Brand Colors ---
-    "Spotify Green": "#1DB954",
-    "Twitch Purple": "#9146FF",
-    "Discord Blurple": "#5865F2",
-    "TikTok Pink": "#FE2C55",
-    "TikTok Cyan": "#25F4EE",
-    "Patreon Coral": "#FF424D",
-    "Twitter Blue": "#1DA1F2",
-    "YouTube Red": "#FF0000",
-    "Netflix Red": "#E50914",
-    # --- The Standard 140 CSS Colors ---
-    "Alice Blue": "#F0F8FF",
-    "Antique White": "#FAEBD7",
-    "Aqua": "#00FFFF",
-    "Aquamarine": "#7FFFD4",
-    "Azure": "#F0FFFF",
-    "Beige": "#F5F5DC",
-    "Bisque": "#FFE4C4",
-    "Black": "#000000",
-    "Blanched Almond": "#FFEBCD",
-    "Blue": "#0000FF",
-    "Blue Violet": "#8A2BE2",
-    "Brown": "#A52A2A",
-    "Burly Wood": "#DEB887",
-    "Cadet Blue": "#5F9EA0",
-    "Chartreuse": "#7FFF00",
-    "Chocolate": "#D2691E",
-    "Coral": "#FF7F50",
-    "Cornflower Blue": "#6495ED",
-    "Cornsilk": "#FFF8DC",
-    "Crimson": "#DC143C",
-    "Cyan": "#00FFFF",
-    "Dark Blue": "#00008B",
-    "Dark Cyan": "#008B8B",
-    "Dark Goldenrod": "#B8860B",
-    "Dark Gray": "#A9A9A9",
-    "Dark Green": "#006400",
-    "Dark Khaki": "#BDB76B",
-    "Dark Magenta": "#8B008B",
-    "Dark Olive Green": "#556B2F",
-    "Dark Orange": "#FF8C00",
-    "Dark Orchid": "#9932CC",
-    "Dark Red": "#8B0000",
-    "Dark Salmon": "#E9967A",
-    "Dark Sea Green": "#8FBC8F",
-    "Dark Slate Blue": "#483D8B",
-    "Dark Slate Gray": "#2F4F4F",
-    "Dark Turquoise": "#00CED1",
-    "Dark Violet": "#9400D3",
-    "Deep Pink": "#FF1493",
-    "Deep Sky Blue": "#00BFFF",
-    "Dim Gray": "#696969",
-    "Dodger Blue": "#1E90FF",
-    "Firebrick": "#B22222",
-    "Floral White": "#FFFAF0",
-    "Forest Green": "#228B22",
-    "Fuchsia": "#FF00FF",
-    "Gainsboro": "#DCDCDC",
-    "Ghost White": "#F8F8FF",
-    "Gold": "#FFD700",
-    "Goldenrod": "#DAA520",
-    "Gray": "#808080",
-    "Green": "#008000",
-    "Green Yellow": "#ADFF2F",
-    "Honeydew": "#F0FFF0",
-    "Hot Pink": "#FF69B4",
-    "Indian Red": "#CD5C5C",
-    "Indigo": "#4B0082",
-    "Ivory": "#FFFFF0",
-    "Khaki": "#F0E68C",
-    "Lavender": "#E6E6FA",
-    "Lavender Blush": "#FFF0F5",
-    "Lawn Green": "#7CFC00",
-    "Lemon Chiffon": "#FFFACD",
-    "Light Blue": "#ADD8E6",
-    "Light Coral": "#F08080",
-    "Light Cyan": "#E0FFFF",
-    "Light Goldenrod Yellow": "#FAFAD2",
-    "Light Gray": "#D3D3D3",
-    "Light Green": "#90EE90",
-    "Light Pink": "#FFB6C1",
-    "Light Salmon": "#FFA07A",
-    "Light Sea Green": "#20B2AA",
-    "Light Sky Blue": "#87CEFA",
-    "Light Slate Gray": "#778899",
-    "Light Steel Blue": "#B0C4DE",
-    "Light Yellow": "#FFFFE0",
-    "Lime": "#00FF00",
-    "Lime Green": "#32CD32",
-    "Linen": "#FAF0E6",
-    "Magenta": "#FF00FF",
-    "Maroon": "#800000",
-    "Medium Aquamarine": "#66CDAA",
-    "Medium Blue": "#0000CD",
-    "Medium Orchid": "#BA55D3",
-    "Medium Purple": "#9370DB",
-    "Medium Sea Green": "#3CB371",
-    "Medium Slate Blue": "#7B68EE",
-    "Medium Spring Green": "#00FA9A",
-    "Medium Turquoise": "#48D1CC",
-    "Medium Violet Red": "#C71585",
-    "Midnight Blue": "#191970",
-    "Mint Cream": "#F5FFFA",
-    "Misty Rose": "#FFE4E1",
-    "Moccasin": "#FFE4B5",
-    "Navajo White": "#FFDEAD",
-    "Navy": "#000080",
-    "Old Lace": "#FDF5E6",
-    "Olive": "#808000",
-    "Olive Drab": "#6B8E23",
-    "Orange": "#FFA500",
-    "Orange Red": "#FF4500",
-    "Orchid": "#DA70D6",
-    "Pale Goldenrod": "#EEE8AA",
-    "Pale Green": "#98FB98",
-    "Pale Turquoise": "#AFEEEE",
-    "Pale Violet Red": "#DB7093",
-    "Papaya Whip": "#FFEFD5",
-    "Peach Puff": "#FFDAB9",
-    "Peru": "#CD853F",
-    "Pink": "#FFC0CB",
-    "Plum": "#DDA0DD",
-    "Powder Blue": "#B0E0E6",
-    "Purple": "#800080",
-    "Rebecca Purple": "#663399",
-    "Rosy Brown": "#BC8F8F",
-    "Royal Blue": "#4169E1",
-    "Saddle Brown": "#8B4513",
-    "Salmon": "#FA8072",
-    "Sandy Brown": "#F4A460",
-    "Sea Green": "#2E8B57",
-    "Sea Shell": "#FFF5EE",
-    "Sienna": "#A0522D",
-    "Silver": "#C0C0C0",
-    "Sky Blue": "#87CEEB",
-    "Slate Blue": "#6A5ACD",
-    "Slate Gray": "#708090",
-    "Snow": "#FFFAFA",
-    "Spring Green": "#00FF7F",
-    "Steel Blue": "#4682B4",
-    "Tan": "#D2B48C",
-    "Teal": "#008080",
-    "Thistle": "#D8BFD8",
-    "Tomato": "#FF6347",
-    "Turquoise": "#40E0D0",
-    "Violet": "#EE82EE",
-    "Wheat": "#F5DEB3",
-    "White": "#FFFFFF",
-    "White Smoke": "#F5F5F5",
-    "Yellow": "#FFFF00",
-    "Yellow Green": "#9ACD32",
-}
 
 
 def _hex_to_rgb(h: str) -> Tuple[int, int, int]:
@@ -245,17 +77,217 @@ def _hex_to_rgb(h: str) -> Tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
-CSS_COLORS_RGB = [(name, *_hex_to_rgb(hx)) for name, hx in CSS_COLOR_HEX.items()]
+def load_color_names() -> List[Tuple[str, int, int, int]]:
+    """Loads the massive color list from JSON, while prioritizing creator colors."""
+    colors_rgb = []
+
+    creator_colors = {
+        # --- Easter Eggs & Creator Colors ---
+        "Matt Joy Slate": "#708090",
+        "Nox Black": "#000001",
+        "It Could Be Teal": "#17CDBE",
+        "Hal Jam Blue": "#0072E5",
+        "Fatbird Pink": "#FF9AEB",
+        "diveBar Pink": "#F42C95",
+        "diveBar Blue": "#01A7DC",
+        "Pear Green": "#DBE273",
+        "Junction Blue": "#023358",
+        "Cloud Eleven Blue": "#005A9E",
+        "Cloak Gray": "#B6B6B6",
+        "Untanned Aghastronaut": "#FFF5E5",
+        "Rank Amateur Feelgood Purpureus": "#9500b3",
+        # --- Creator & Brand Colors ---
+        "Spotify Green": "#1DB954",
+        "Twitch Purple": "#9146FF",
+        "Discord Blurple": "#5865F2",
+        "TikTok Pink": "#FE2C55",
+        "TikTok Cyan": "#25F4EE",
+        "Patreon Coral": "#FF424D",
+        "Twitter Blue": "#1DA1F2",
+        "YouTube Red": "#FF0000",
+        "Netflix Red": "#E50914",
+        # --- The Standard 140 CSS Colors ---
+        "Alice Blue": "#F0F8FF",
+        "Antique White": "#FAEBD7",
+        "Aqua": "#00FFFF",
+        "Aquamarine": "#7FFFD4",
+        "Azure": "#F0FFFF",
+        "Beige": "#F5F5DC",
+        "Bisque": "#FFE4C4",
+        "Black": "#000000",
+        "Blanched Almond": "#FFEBCD",
+        "Blue": "#0000FF",
+        "Blue Violet": "#8A2BE2",
+        "Brown": "#A52A2A",
+        "Burly Wood": "#DEB887",
+        "Cadet Blue": "#5F9EA0",
+        "Chartreuse": "#7FFF00",
+        "Chocolate": "#D2691E",
+        "Coral": "#FF7F50",
+        "Cornflower Blue": "#6495ED",
+        "Cornsilk": "#FFF8DC",
+        "Crimson": "#DC143C",
+        "Cyan": "#00FFFF",
+        "Dark Blue": "#00008B",
+        "Dark Cyan": "#008B8B",
+        "Dark Goldenrod": "#B8860B",
+        "Dark Gray": "#A9A9A9",
+        "Dark Green": "#006400",
+        "Dark Khaki": "#BDB76B",
+        "Dark Magenta": "#8B008B",
+        "Dark Olive Green": "#556B2F",
+        "Dark Orange": "#FF8C00",
+        "Dark Orchid": "#9932CC",
+        "Dark Red": "#8B0000",
+        "Dark Salmon": "#E9967A",
+        "Dark Sea Green": "#8FBC8F",
+        "Dark Slate Blue": "#483D8B",
+        "Dark Slate Gray": "#2F4F4F",
+        "Dark Turquoise": "#00CED1",
+        "Dark Violet": "#9400D3",
+        "Deep Pink": "#FF1493",
+        "Deep Sky Blue": "#00BFFF",
+        "Dim Gray": "#696969",
+        "Dodger Blue": "#1E90FF",
+        "Firebrick": "#B22222",
+        "Floral White": "#FFFAF0",
+        "Forest Green": "#228B22",
+        "Fuchsia": "#FF00FF",
+        "Gainsboro": "#DCDCDC",
+        "Ghost White": "#F8F8FF",
+        "Gold": "#FFD700",
+        "Goldenrod": "#DAA520",
+        "Gray": "#808080",
+        "Green": "#008000",
+        "Green Yellow": "#ADFF2F",
+        "Honeydew": "#F0FFF0",
+        "Hot Pink": "#FF69B4",
+        "Indian Red": "#CD5C5C",
+        "Indigo": "#4B0082",
+        "Ivory": "#FFFFF0",
+        "Khaki": "#F0E68C",
+        "Lavender": "#E6E6FA",
+        "Lavender Blush": "#FFF0F5",
+        "Lawn Green": "#7CFC00",
+        "Lemon Chiffon": "#FFFACD",
+        "Light Blue": "#ADD8E6",
+        "Light Coral": "#F08080",
+        "Light Cyan": "#E0FFFF",
+        "Light Goldenrod Yellow": "#FAFAD2",
+        "Light Gray": "#D3D3D3",
+        "Light Green": "#90EE90",
+        "Light Pink": "#FFB6C1",
+        "Light Salmon": "#FFA07A",
+        "Light Sea Green": "#20B2AA",
+        "Light Sky Blue": "#87CEFA",
+        "Light Slate Gray": "#778899",
+        "Light Steel Blue": "#B0C4DE",
+        "Light Yellow": "#FFFFE0",
+        "Lime": "#00FF00",
+        "Lime Green": "#32CD32",
+        "Linen": "#FAF0E6",
+        "Magenta": "#FF00FF",
+        "Maroon": "#800000",
+        "Medium Aquamarine": "#66CDAA",
+        "Medium Blue": "#0000CD",
+        "Medium Orchid": "#BA55D3",
+        "Medium Purple": "#9370DB",
+        "Medium Sea Green": "#3CB371",
+        "Medium Slate Blue": "#7B68EE",
+        "Medium Spring Green": "#00FA9A",
+        "Medium Turquoise": "#48D1CC",
+        "Medium Violet Red": "#C71585",
+        "Midnight Blue": "#191970",
+        "Mint Cream": "#F5FFFA",
+        "Misty Rose": "#FFE4E1",
+        "Moccasin": "#FFE4B5",
+        "Navajo White": "#FFDEAD",
+        "Navy": "#000080",
+        "Old Lace": "#FDF5E6",
+        "Olive": "#808000",
+        "Olive Drab": "#6B8E23",
+        "Orange": "#FFA500",
+        "Orange Red": "#FF4500",
+        "Orchid": "#DA70D6",
+        "Pale Goldenrod": "#EEE8AA",
+        "Pale Green": "#98FB98",
+        "Pale Turquoise": "#AFEEEE",
+        "Pale Violet Red": "#DB7093",
+        "Papaya Whip": "#FFEFD5",
+        "Peach Puff": "#FFDAB9",
+        "Peru": "#CD853F",
+        "Pink": "#FFC0CB",
+        "Plum": "#DDA0DD",
+        "Powder Blue": "#B0E0E6",
+        "Purple": "#800080",
+        "Rebecca Purple": "#663399",
+        "Rosy Brown": "#BC8F8F",
+        "Royal Blue": "#4169E1",
+        "Saddle Brown": "#8B4513",
+        "Salmon": "#FA8072",
+        "Sandy Brown": "#F4A460",
+        "Sea Green": "#2E8B57",
+        "Sea Shell": "#FFF5EE",
+        "Sienna": "#A0522D",
+        "Silver": "#C0C0C0",
+        "Sky Blue": "#87CEEB",
+        "Slate Blue": "#6A5ACD",
+        "Slate Gray": "#708090",
+        "Snow": "#FFFAFA",
+        "Spring Green": "#00FF7F",
+        "Steel Blue": "#4682B4",
+        "Tan": "#D2B48C",
+        "Teal": "#008080",
+        "Thistle": "#D8BFD8",
+        "Tomato": "#FF6347",
+        "Turquoise": "#40E0D0",
+        "Violet": "#EE82EE",
+        "Wheat": "#F5DEB3",
+        "White": "#FFFFFF",
+        "White Smoke": "#F5F5F5",
+        "Yellow": "#FFFF00",
+        "Yellow Green": "#9ACD32",
+    }
+
+    for name, hex_str in creator_colors.items():
+        colors_rgb.append((name, *_hex_to_rgb(hex_str)))
+
+    # --- Meodai Community Colors (31k+) ---
+    try:
+        json_path = resource_path("assets/colornames.json")
+        if Path(json_path).exists():
+            with open(json_path, "r", encoding="utf-8") as f:
+                color_list = json.load(f)
+
+                for c in color_list:
+                    name = c.get("name")
+                    hexv = c.get("hex")
+                    if name and hexv:
+                        colors_rgb.append((name, *_hex_to_rgb(hexv)))
+    except Exception as e:
+        print(f"Warning: Could not load colornames.json. Using fallback. ({e})")
+
+    return colors_rgb
+
+
+# Load into memory exactly once when the app starts
+CSS_COLORS_RGB = load_color_names()
 
 
 def nearest_color_name(r: int, g: int, b: int) -> str:
     best_name = "Unknown"
     best_d = 10**18
     for name, cr, cg, cb in CSS_COLORS_RGB:
+        # Calculate Euclidean distance between colors
         d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
         if d < best_d:
             best_d = d
             best_name = name
+
+            # Performance boost: exact match stops the loop
+            if best_d == 0:
+                break
+
     return best_name
 
 
@@ -1549,9 +1581,10 @@ class MainWindow(QMainWindow):
 
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
-            + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #788A96;">youtube.com/@MattJoyKaraoke</a><br><br>'
+            + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br><br>'
             + "Version 1.9.1.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
+            + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
         )
         text_lbl.setOpenExternalLinks(True)
