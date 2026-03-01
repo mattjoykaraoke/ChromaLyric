@@ -1,0 +1,16 @@
+Local:
+git add .
+git commit -m "comment"
+git tag v0.0.0
+
+git log --oneline
+
+To get old versions:
+git show HASH:app.py > app_old.py
+
+list files:
+git ls-files
+
+Push to GitHub:
+git push -u origin main
+git push
