@@ -85,10 +85,31 @@ Stop guessing hex codes. ChromaLyric 1.9.0 introduces a built-in, floating color
 
 __________________________________________________________________________________________
 
+### 🧊 Advanced 3D Shadows & Extrusion
+ChromaLyric includes a built-in KFX (Karaoke Effects) engine to generate complex, directional shadows and retro 3D extrusions without requiring you to write a single line of override code.
+
+* Using the Shadow panel, you can use the interactive radial dial to set a precise drop-shadow angle, or check Pseudo-3D Extrusion to stack up to 15 layers of your text for a deep, solid 3D effect.
+
+* **🛠️ How it Works (The ChromaShadow Tag):** Standard .ass format does not natively support asymmetrical borders or 3D angles. To achieve this, ChromaLyric acts as a mini-rendering engine when you click "Save As...":
+
+It mathematically calculates the offset for your chosen angle.
+
+For 3D extrusions, it duplicates your dialogue lines, injecting precise \xshad and \yshad tags to build the extrusion layer by layer.
+
+It automatically elevates your main text to a higher layer (Z-index) and cleans out conflicting shadow tags so tools like ffmpeg render the composite flawlessly.
+
+* **Non-Destructive Editing:** Because generating a 15-step 3D effect creates 15 duplicate lines for every lyric, ChromaLyric safely tags these generated background layers with ChromaShadow in the standard ASS Effect column.
+
+If you ever need to tweak your lyrics or colors later, simply drop the generated .ass file back into ChromaLyric. The app will instantly detect the ChromaShadow tags, strip the 3D layers out, and leave you with your clean, original lyrics ready for editing!
+
+![ChromaLyric Screenshot](assets/Screenshot3.png)
+
+__________________________________________________________________________________________
+
 ### 📂 Supported File Type
 * **.ass** (Advanced SubStation Alpha)
 
-ChromaLyric edits only the **Styles** section of the file. Dialogue lines are preserved as-is.
+As of 1.10.0 ChromaLyric edits the **Styles** section of the file and Dialogue lines will be duplicated for advanced shadow effects. If you do not have a way to regenerate your `.ass` file and this concerns you, I suggest saving as a new file and not overwriting the original.
 
 __________________________________________________________________________________________
 
@@ -97,9 +118,6 @@ ________________________________________________________________________________
 * Does not burn subtitles
 * Does not require FFmpeg
 * Does not modify dialogue timing
-* Does not alter non-style sections
-
-It is strictly a style color editor and visualizer.
 
 __________________________________________________________________________________________
 
@@ -108,7 +126,6 @@ ________________________________________________________________________________
 2. Loads the style format definition.
 3. Maps each style field dynamically.
 4. Allows live modification of colors, outline size, and shadow effects.
-5. Rewrites only the style lines when saving.
 
 No external tools are required.
 

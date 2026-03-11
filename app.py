@@ -388,7 +388,17 @@ class AssDoc:
     @staticmethod
     def load(path: str) -> "AssDoc":
         text = Path(path).read_text(encoding="utf-8-sig", errors="replace")
-        lines = text.splitlines()
+        raw_lines = text.splitlines()
+
+        # --- NEW: Strip out any previously generated ChromaLyric 3D layers ---
+        lines = []
+        for l in raw_lines:
+            if l.startswith("Dialogue:"):
+                # Split precisely to isolate the Effect column (index 8)
+                parts = l.split(":", 1)[1].split(",", 9)
+                if len(parts) == 10 and parts[8].strip().startswith("ChromaShadow"):
+                    continue  # Skip this generated 3D layer
+            lines.append(l)
 
         section_name = None
         if any(l.strip() == "[V4+ Styles]" for l in lines):
@@ -497,9 +507,16 @@ class AssDoc:
         return first_fallback, by_style
 
     def save_as(self, out_path: str) -> None:
+        import math
+
+        # 1. Write the updated styles back to the header
         new_style_lines = []
         for st in self.styles:
-            row = [st.fields.get(col, "") for col in self.format_cols]
+            # Strip out our custom Chroma keys so we don't corrupt the standard ASS format
+            clean_fields = {
+                k: v for k, v in st.fields.items() if not k.startswith("Chroma")
+            }
+            row = [clean_fields.get(col, "") for col in self.format_cols]
             new_style_lines.append("Style: " + ", ".join(row))
 
         if self.style_line_indices:
@@ -507,8 +524,80 @@ class AssDoc:
             end = self.style_line_indices[-1]
             self.lines[start : end + 1] = new_style_lines
 
+        # 2. Process the [Events] section to apply line-level rendering
+        final_lines = []
+
+        for line in self.lines:
+            # Only process dialogue lines
+            if line.startswith("Dialogue:"):
+                prefix, payload = line.split(":", 1)
+
+                # Standard ASS: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+                parts = payload.split(",", 9)
+
+                if len(parts) == 10:
+                    layer, start, end, stylename, name, ml, mr, mv, effect, text = parts
+                    stylename = stylename.strip()
+
+                    # Check if the style for this line has our custom properties
+                    target_style = next(
+                        (s for s in self.styles if s.name == stylename), None
+                    )
+
+                    if target_style:
+                        angle = float(target_style.fields.get("ChromaAngle", 45))
+                        is_3d = target_style.fields.get("Chroma3D", "False") == "True"
+                        steps = int(target_style.fields.get("ChromaSteps", 10))
+                        shadow_dist = float(target_style.fields.get("Shadow", 0))
+
+                        if shadow_dist > 0:
+                            angle_rad = math.radians(angle)
+                            base_layer = int(layer)
+
+                            # 1. Clean the text of any existing shadow tags that might override ours
+                            import re
+
+                            clean_text = re.sub(r"\\[xy]?shad[0-9.-]+", "", text)
+
+                            if is_3d:
+                                # Render the extruded background layers first
+                                for i in range(steps, 0, -1):
+                                    frac = i / steps
+                                    dx = shadow_dist * frac * math.cos(angle_rad)
+                                    dy = shadow_dist * frac * math.sin(angle_rad)
+                                    override = f"{{\\xshad{dx:.2f}\\yshad{dy:.2f}}}"
+
+                                    # --- NEW: Tag the effect column ---
+                                    # Preserve any existing effect (like 'karaoke') by appending to it
+                                    shadow_effect = (
+                                        f"ChromaShadow;{effect}"
+                                        if effect
+                                        else "ChromaShadow"
+                                    )
+
+                                    layer_payload = f"{base_layer},{start},{end},{stylename},{name},{ml},{mr},{mv},{shadow_effect},{override}{clean_text}"
+                                    final_lines.append(f"{prefix}:{layer_payload}")
+
+                                # 2. Push the top layer to a higher z-index (base_layer + 1)
+                                override = f"{{\\xshad0\\yshad0}}"
+                                top_payload = f"{base_layer + 1},{start},{end},{stylename},{name},{ml},{mr},{mv},{effect},{override}{clean_text}"
+                                final_lines.append(f"{prefix}:{top_payload}")
+                                continue
+                            else:
+                                # Simple angled shadow
+                                dx = shadow_dist * math.cos(angle_rad)
+                                dy = shadow_dist * math.sin(angle_rad)
+                                override = f"{{\\xshad{dx:.2f}\\yshad{dy:.2f}}}"
+                                single_payload = f"{base_layer},{start},{end},{stylename},{name},{ml},{mr},{mv},{effect},{override}{clean_text}"
+                                final_lines.append(f"{prefix}:{single_payload}")
+                                continue
+
+            # If it's not a Dialogue line or had no shadow logic, append it untouched
+            final_lines.append(line)
+
+        # Write the final file
         Path(out_path).write_text(
-            "\n".join(self.lines) + "\n", encoding="utf-8", newline="\n"
+            "\n".join(final_lines) + "\n", encoding="utf-8", newline="\n"
         )
 
 
@@ -556,6 +645,10 @@ class AssPreviewWidget(QWidget):
 
         # always-on karaoke progress
         self.karaoke_progress = 0.35  # 0..1
+        # shadow angle and 3d state
+        self.shadow_angle = 45
+        self.shadow_3d = False
+        self.shadow_steps = 10
 
     def set_style(self, style: Optional[AssStyle]):
         self.ass_style = style
@@ -668,9 +761,25 @@ class AssPreviewWidget(QWidget):
             path = QPainterPath()
             path.addText(baseline_x, baseline_y, font, text)
 
-            # Shadow
+            # Shadow & 3D Extrusion
             if shadow > 0.0 and back_q.alpha() > 0:
-                p.fillPath(path.translated(shadow, shadow), back_q)
+                import math
+
+                angle_rad = math.radians(self.shadow_angle)
+
+                if self.shadow_3d:
+                    # Render multiple stacked layers for 3D extrusion
+                    steps = max(1, min(15, self.shadow_steps))
+                    for i in range(steps, 0, -1):
+                        frac = i / steps
+                        dx = shadow * frac * math.cos(angle_rad)
+                        dy = shadow * frac * math.sin(angle_rad)
+                        p.fillPath(path.translated(dx, dy), back_q)
+                else:
+                    # Standard directional drop shadow
+                    dx = shadow * math.cos(angle_rad)
+                    dy = shadow * math.sin(angle_rad)
+                    p.fillPath(path.translated(dx, dy), back_q)
 
             # Outline
             if outline_w > 0.0 and outl_q.alpha() > 0:
@@ -913,6 +1022,67 @@ class PickedColorWidget(QWidget):
         layout.addLayout(btn_layout)
         layout.addStretch()
         self.setLayout(layout)
+
+
+import math
+
+from PySide6.QtCore import QPointF
+from PySide6.QtGui import QColor, QPainter, QPen
+
+
+class AnglePicker(QWidget):
+    angleChanged = Signal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(60, 60)
+        self.angle = 45  # Default bottom-right
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        rect = self.rect().adjusted(2, 2, -2, -2)
+        p.setPen(QPen(QColor("#444"), 2))
+        p.drawEllipse(rect)
+
+        center = rect.center()
+        rad = math.radians(self.angle)
+        end_x = center.x() + (rect.width() / 2) * math.cos(rad)
+        end_y = center.y() + (rect.height() / 2) * math.sin(rad)
+
+        # Using your existing Teal color for the needle
+        p.setPen(QPen(QColor("#17CDBE"), 2))
+        p.drawLine(center, QPointF(end_x, end_y))
+
+        p.setBrush(QColor("#17CDBE"))
+        p.drawEllipse(QPointF(end_x, end_y), 4, 4)
+
+    def mousePressEvent(self, event):
+        self.update_angle(event.position())
+
+    def mouseMoveEvent(self, event):
+        self.update_angle(event.position())
+
+    def update_angle(self, pos):
+        center = self.rect().center()
+        dx = pos.x() - center.x()
+        dy = pos.y() - center.y()
+
+        angle_rad = math.atan2(dy, dx)
+        angle_deg = math.degrees(angle_rad)
+        if angle_deg < 0:
+            angle_deg += 360
+
+        # Snap to 45-degree increments if close
+        for snap in [0, 45, 90, 135, 180, 225, 270, 315, 360]:
+            if abs(angle_deg - snap) < 15:
+                angle_deg = snap
+                break
+
+        self.angle = int(angle_deg % 360)
+        self.angleChanged.emit(self.angle)
+        self.update()
 
 
 # -----------------------------
@@ -1265,10 +1435,44 @@ class MainWindow(QMainWindow):
         shadow_body_layout.setContentsMargins(0, 0, 0, 0)  # Fixes the misalignment!
         shadow_body_layout.setSpacing(6)
 
+        # --- NEW ANGLE AND 3D UI ---
+        from PySide6.QtWidgets import QCheckBox
+
+        self.shadow_angle_picker = AnglePicker()
+        self.shadow_angle_picker.angleChanged.connect(self.on_shadow_angle_changed)
+
+        self.shadow_3d_cb = QCheckBox("Pseudo-3D Extrusion")
+        self.shadow_3d_cb.toggled.connect(self.on_shadow_3d_toggled)
+
+        self.shadow_steps = QSpinBox()
+        self.shadow_steps.setRange(1, 15)
+        self.shadow_steps.setValue(10)
+        self.shadow_steps.setSuffix(" layers")
+        self.shadow_steps.setFixedWidth(80)
+        self.shadow_steps.setEnabled(False)  # Disabled until 3D is checked
+        self.shadow_steps.valueChanged.connect(self.on_shadow_steps_changed)
+
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel("Distance"))
+        row1.addWidget(self.shadow_angle_picker)
+
+        # Wrap distance and 3D in a vertical column next to the dial
+        dist_3d_col = QVBoxLayout()
+
+        dist_row = QHBoxLayout()
+        dist_row.addWidget(QLabel("Distance/Depth:"))
+        dist_row.addWidget(self.shadow_distance)
+        dist_row.addStretch(1)
+
+        step_row = QHBoxLayout()
+        step_row.addWidget(self.shadow_3d_cb)
+        step_row.addWidget(self.shadow_steps)
+        step_row.addStretch(1)
+
+        dist_3d_col.addLayout(dist_row)
+        dist_3d_col.addLayout(step_row)
+
+        row1.addLayout(dist_3d_col)
         row1.addStretch(1)
-        row1.addWidget(self.shadow_distance)
         shadow_body_layout.addLayout(row1)
 
         row2 = QHBoxLayout()
@@ -1385,6 +1589,28 @@ class MainWindow(QMainWindow):
         st.fields["Shadow"] = str(value)
         self.preview.update()
 
+    def on_shadow_angle_changed(self, angle: int):
+        self.preview.shadow_angle = angle
+        st = self.current_style()
+        if st:
+            st.fields["ChromaAngle"] = str(angle)
+        self.preview.update()
+
+    def on_shadow_3d_toggled(self, checked: bool):
+        self.preview.shadow_3d = checked
+        self.shadow_steps.setEnabled(checked)
+        st = self.current_style()
+        if st:
+            st.fields["Chroma3D"] = "True" if checked else "False"
+        self.preview.update()
+
+    def on_shadow_steps_changed(self, steps: int):
+        self.preview.shadow_steps = steps
+        st = self.current_style()
+        if st:
+            st.fields["ChromaSteps"] = str(steps)
+        self.preview.update()
+
     def on_shadow_opacity_changed(self, pct: int):
         st = self.current_style()
         if not st:
@@ -1491,6 +1717,29 @@ class MainWindow(QMainWindow):
             self.shadow_opacity_slider.blockSignals(True)
             self.shadow_opacity_slider.setValue(0)
             self.shadow_opacity_slider.blockSignals(False)
+        # --- NEW: Sync Angle and 3D states ---
+        # 1. Angle
+        angle = int(st.fields.get("ChromaAngle", 45))
+        self.shadow_angle_picker.angle = angle
+        self.shadow_angle_picker.update()  # Force repaint
+        self.preview.shadow_angle = angle
+
+        # 2. 3D Checkbox
+        is_3d = st.fields.get("Chroma3D", "False") == "True"
+        self.shadow_3d_cb.blockSignals(True)
+        self.shadow_3d_cb.setChecked(is_3d)
+        self.shadow_3d_cb.blockSignals(False)
+        self.preview.shadow_3d = is_3d
+
+        # Enable/Disable the steps slider based on the checkbox
+        self.shadow_steps.setEnabled(is_3d)
+
+        # 3. Steps Slider
+        steps = int(st.fields.get("ChromaSteps", 10))
+        self.shadow_steps.blockSignals(True)
+        self.shadow_steps.setValue(steps)
+        self.shadow_steps.blockSignals(False)
+        self.preview.shadow_steps = steps
 
     def open_chroma_picker(self):
         # Create the window only if it doesn't already exist
@@ -1565,10 +1814,6 @@ class MainWindow(QMainWindow):
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
-        style_set_color(st, key, (chosen.red(), chosen.green(), chosen.blue(), a))
-        self.on_style_selected(self.styles_list.currentRow())
-        self.preview.update()
-
     def set_shadow_to_black(self):
         st = self.current_style()
         if not st:
@@ -1620,7 +1865,7 @@ class MainWindow(QMainWindow):
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.9.2.<br>"
+            + "Version 1.10.0.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
@@ -1739,6 +1984,10 @@ class MainWindow(QMainWindow):
             "shadow_color": style_get_color(st, "BackColour") or (0, 0, 0, 0),
             "outline_thick": style_get_int(st, "Outline", 0),
             "shadow_dist": style_get_int(st, "Shadow", 0),
+            # --- NEW: Save the 3D and Angle states ---
+            "shadow_angle": self.shadow_angle_picker.angle,
+            "shadow_3d": self.shadow_3d_cb.isChecked(),
+            "shadow_steps": self.shadow_steps.value(),
         }
 
     def load_presets(self):
@@ -1795,6 +2044,18 @@ class MainWindow(QMainWindow):
             st.fields["Outline"] = str(preset["outline_thick"])
         if "shadow_dist" in preset:
             st.fields["Shadow"] = str(preset["shadow_dist"])
+
+        # --- NEW: Apply 3D and Angle states (Backward Compatible) ---
+        if "shadow_angle" in preset:
+            self.shadow_angle_picker.angle = preset["shadow_angle"]
+            self.shadow_angle_picker.update()  # Force repaint of the dial
+            self.preview.shadow_angle = preset["shadow_angle"]
+
+        if "shadow_3d" in preset:
+            self.shadow_3d_cb.setChecked(preset["shadow_3d"])
+
+        if "shadow_steps" in preset:
+            self.shadow_steps.setValue(preset["shadow_steps"])
 
         # 4. Refresh UI (Updates Swatches, Spinboxes, and the Preview)
         self.on_style_selected(self.styles_list.currentRow())

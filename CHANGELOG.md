@@ -2,6 +2,18 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.10.0] - 2026-03-10
+
+### Added
+- **Advanced KFX Engine (Pseudo-3D & Angled Shadows)**: ChromaLyric is now a mini-rendering engine! You can now easily generate complex karaoke text effects directly in the UI without needing to write complex ASS override tags by hand. 
+- **Interactive Angle Dial**: A new custom radial dial lets you visually set the exact angle (0º-360º) for your drop shadows or 3D extrusions.
+- **Pseudo-3D Extrusion Mode**: Check the new 3D box to instantly stack up to 15 mathematical layers of your text, creating a smooth, deep, retro-3D extrusion effect.
+- **Non-Destructive Exporting**: When you save, ChromaLyric calculates and injects precise \xshad and \yshad tags into your .ass file. We automatically tag these generated background layers with ChromaShadow in the Effect column. If you ever reopen the file in ChromaLyric, it instantly strips the 3D layers out on load, leaving your original lyrics perfectly clean and editable.
+
+### Changed
+- **Theme Library Upgrade**: Your custom Theme Library presets now natively support and remember your custom 3D Extrusion, Step count, and Angle settings. Dial in your perfect 3D aesthetic, save it once, and apply it anywhere.
+- **FFmpeg & libass Compatibility**: Upgraded the export logic to automatically clean existing, conflicting shadow tags (\shad) from your raw lyrics and elevate the z-index of the primary text. This ensures tools like kbp2video and ffmpeg composite your 3D shadows flawlessly without squashing layers during the video burn process.
+
 ## [1.9.2] - 2026-02-28
 
 ### Added
