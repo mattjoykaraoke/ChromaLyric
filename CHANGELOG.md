@@ -2,6 +2,12 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.10.2] - 2026-03-15
+
+### Changed
+- **Dynamic Resizing**: Vertical space and horizontal space are better managed.
+- **Slider Color**: Registry is read for your accent color and applies it (fixed from default blue when I enforced dark mode)
+
 ## [1.10.1] - 2026-03-15
 
 ### Changed

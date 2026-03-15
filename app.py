@@ -48,6 +48,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSlider,
     QSpinBox,
     QVBoxLayout,
@@ -636,7 +637,15 @@ def style_set_color(style: AssStyle, key: str, rgba: Tuple[int, int, int, int]) 
 class AssPreviewWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setMinimumHeight(520)
+
+        # Allow the preview to shrink when the shadow menu opens
+        self.setMinimumHeight(200)
+        self.setMaximumHeight(600)
+
+        # Tell Qt it can elastically squash this widget to make room
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding
+        )
 
         self.sample_text = "Sample Text  AaBb  123  ♪"
         self.ass_style: Optional[AssStyle] = None
@@ -1865,7 +1874,7 @@ class MainWindow(QMainWindow):
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.10.1.<br>"
+            + "Version 1.10.2.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
@@ -2190,12 +2199,36 @@ class MainWindow(QMainWindow):
         event.ignore()
 
 
+import winreg
+
+
+def get_windows_accent_color():
+    """Fetches the current Windows accent color from the registry."""
+    try:
+        registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
+        key = winreg.OpenKey(registry, r"Software\Microsoft\Windows\DWM")
+        value, _ = winreg.QueryValueEx(key, "ColorizationColor")
+
+        # The registry value is stored as a 32-bit integer (AARRGGBB)
+        # We use bitwise shifts to extract the Red, Green, and Blue channels
+        r = (value >> 16) & 0xFF
+        g = (value >> 8) & 0xFF
+        b = value & 0xFF
+        return QColor(r, g, b)
+    except Exception:
+        # Fallback to default blue if the OS isn't Windows or the key is missing
+        return QColor(42, 130, 218)
+
+
 def main():
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QColor, QIcon, QPalette
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+
+    # Grab your green Windows accent color (or whatever you change it to later!)
+    accent_color = get_windows_accent_color()
 
     # --- FORCE DARK MODE PALETTE ---
     dark_palette = QPalette()
@@ -2209,8 +2242,11 @@ def main():
     dark_palette.setColor(QPalette.ColorRole.Button, QColor(45, 45, 45))
     dark_palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
     dark_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
-    dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+
+    # Apply the dynamic system accent color here
+    dark_palette.setColor(QPalette.ColorRole.Link, accent_color)
+    dark_palette.setColor(QPalette.ColorRole.Highlight, accent_color)
+
     dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
 
     app.setPalette(dark_palette)
@@ -2220,7 +2256,6 @@ def main():
     app.setWindowIcon(QIcon(resource_path("assets/ChromaLyric.ico")))
     win = MainWindow()
 
-    # If launched via file association (double-click .ass)
     if len(sys.argv) > 1:
         path = sys.argv[1]
         if Path(path).exists() and path.lower().endswith(".ass"):
