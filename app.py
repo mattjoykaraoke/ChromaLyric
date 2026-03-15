@@ -1865,7 +1865,7 @@ class MainWindow(QMainWindow):
         text_lbl = QLabel(
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br><br>'
-            + "Version 1.10.0.<br>"
+            + "Version 1.10.1.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
@@ -2191,10 +2191,31 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    from PySide6.QtGui import QIcon
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QColor, QIcon, QPalette
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+
+    # --- FORCE DARK MODE PALETTE ---
+    dark_palette = QPalette()
+    dark_palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
+    dark_palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+    dark_palette.setColor(QPalette.ColorRole.Base, QColor(18, 18, 18))
+    dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(30, 30, 30))
+    dark_palette.setColor(QPalette.ColorRole.ToolTipBase, Qt.GlobalColor.white)
+    dark_palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+    dark_palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+    dark_palette.setColor(QPalette.ColorRole.Button, QColor(45, 45, 45))
+    dark_palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+    dark_palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+    dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+
+    app.setPalette(dark_palette)
+    # -------------------------------
+
     app.setApplicationName("ChromaLyric")
     app.setWindowIcon(QIcon(resource_path("assets/ChromaLyric.ico")))
     win = MainWindow()

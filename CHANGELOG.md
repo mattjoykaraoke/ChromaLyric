@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.10.1] - 2026-03-15
+
+### Changed
+- **Force Dark Mode**: ChromaLyric looks better in dark mode.
+
 ## [1.10.0] - 2026-03-10
 
 ### Added
