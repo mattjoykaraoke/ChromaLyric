@@ -148,6 +148,7 @@ ________________________________________________________________________________
 ### 📜 Licensing
 ChromaLyric itself is proprietary software.
 © 2026 Matt Joy. All rights reserved.
+YouTube: [youtube.com/@MattJoyKaraoke](https://www.youtube.com/@MattJoyKaraoke)
 
 This application uses Qt / PySide6, licensed under the GNU Lesser General Public License v3 (LGPL-3.0). Qt source code is available at: https://code.qt.io/
 
