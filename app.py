@@ -1919,7 +1919,7 @@ class MainWindow(QMainWindow):
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br>'
             + '<a href="https://github.com/mattjoykaraoke" style="color: #708090;">github.com/mattjoykaraoke</a><br><br>'
-            + "Version 1.10.2.<br>"
+            + "Version 1.10.3.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."

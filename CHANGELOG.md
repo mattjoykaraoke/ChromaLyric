@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.10.3] - 2026-03-15
+
+### Added
+- **Color Swapping**: Right click the palette on Highlight or Base to swap them.
+
 ## [1.10.2] - 2026-03-15
 
 ### Changed
