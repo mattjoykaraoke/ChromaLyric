@@ -1398,6 +1398,20 @@ class MainWindow(QMainWindow):
         self.sw_base.clicked.connect(lambda: self.pick_color("SecondaryColour"))
         self.sw_outline.clicked.connect(lambda: self.pick_color("OutlineColour"))
 
+        # Enable custom right-click menus on the swatch buttons
+        self.sw_highlight.swatch_btn.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self.sw_base.swatch_btn.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+
+        # Connect both to the same menu function
+        self.sw_highlight.swatch_btn.customContextMenuRequested.connect(
+            self.show_swap_menu
+        )
+        self.sw_base.swatch_btn.customContextMenuRequested.connect(self.show_swap_menu)
+
         # Outline thickness (Style 'Outline') - compact control to the right of outline swatch
         self.outline_spin = QSpinBox()
         self.outline_spin.setRange(0, 20)
@@ -1838,6 +1852,36 @@ class MainWindow(QMainWindow):
         # 3. Trigger the UI to instantly update the Swatch label and Preview window
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
+
+    def swap_highlight_base(self):
+        st = self.current_style()
+        if not st:
+            return
+
+        # Grab current colors (fallback to defaults just in case)
+        prim = style_get_color(st, "PrimaryColour") or (255, 255, 255, 0)
+        sec = style_get_color(st, "SecondaryColour") or (255, 255, 0, 0)
+
+        # Swap them
+        style_set_color(st, "PrimaryColour", sec)
+        style_set_color(st, "SecondaryColour", prim)
+
+        # Instantly refresh the UI and preview
+        self.on_style_selected(self.styles_list.currentRow())
+        self.preview.update()
+
+    def show_swap_menu(self, pos):
+        # We don't need to know which button was clicked, the action is the same
+        menu = QMenu(self)
+        swap_action = menu.addAction("🔄 Swap Highlight && Base")
+
+        # We use QCursor.pos() to spawn the menu exactly where the mouse is globally
+        from PySide6.QtGui import QCursor
+
+        action = menu.exec(QCursor.pos())
+
+        if action == swap_action:
+            self.swap_highlight_base()
 
     def save_as(self):
         if not self.doc or not self.current_path:
