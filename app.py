@@ -518,7 +518,7 @@ class AssDoc:
                 k: v for k, v in st.fields.items() if not k.startswith("Chroma")
             }
             row = [clean_fields.get(col, "") for col in self.format_cols]
-            new_style_lines.append("Style: " + ", ".join(row))
+            new_style_lines.append("Style: " + ",".join(row))
 
         if self.style_line_indices:
             start = self.style_line_indices[0]
@@ -1919,7 +1919,7 @@ class MainWindow(QMainWindow):
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br>'
             + '<a href="https://github.com/mattjoykaraoke" style="color: #708090;">github.com/mattjoykaraoke</a><br><br>'
-            + "Version 1.10.3.<br>"
+            + "Version 1.10.4.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."

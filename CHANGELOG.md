@@ -2,7 +2,12 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
-## [1.10.3] - 2026-03-15
+## [1.10.4] - 2026-04-01
+
+### Fixed
+- **Strict ASS Formatting:** Removed an unintended trailing space after commas when saving modified style lines. ChromaLyric now outputs tightly packed, natively formatted `.ass` definitions (e.g., `Style: Name,Font,Size` instead of `Style: Name, Font, Size`), ensuring perfect 1:1 compatibility with standard Aegisub behavior and third-party subtitle parsers.
+
+## [1.10.3] - 2026-03-30
 
 ### Added
 - **Color Swapping**: Right click the palette on Highlight or Base to swap them.
@@ -24,7 +29,7 @@ All notable changes to ChromaLyric will be documented in this file.
 - **Advanced KFX Engine (Pseudo-3D & Angled Shadows)**: ChromaLyric is now a mini-rendering engine! You can now easily generate complex karaoke text effects directly in the UI without needing to write complex ASS override tags by hand. 
 - **Interactive Angle Dial**: A new custom radial dial lets you visually set the exact angle (0º-360º) for your drop shadows or 3D extrusions.
 - **Pseudo-3D Extrusion Mode**: Check the new 3D box to instantly stack up to 15 mathematical layers of your text, creating a smooth, deep, retro-3D extrusion effect.
-- **Non-Destructive Exporting**: When you save, ChromaLyric calculates and injects precise \xshad and \yshad tags into your .ass file. We automatically tag these generated background layers with ChromaShadow in the Effect column. If you ever reopen the file in ChromaLyric, it instantly strips the 3D layers out on load, leaving your original lyrics perfectly clean and editable.
+- **Non-Destructive Exporting**: When you save, ChromaLyric calculates and injects precise \xshad and \yshad tags into your `.ass` file. We automatically tag these generated background layers with ChromaShadow in the Effect column. If you ever reopen the file in ChromaLyric, it instantly strips the 3D layers out on load, leaving your original lyrics perfectly clean and editable.
 
 ### Changed
 - **Theme Library Upgrade**: Your custom Theme Library presets now natively support and remember your custom 3D Extrusion, Step count, and Angle settings. Dial in your perfect 3D aesthetic, save it once, and apply it anywhere.
@@ -67,7 +72,7 @@ All notable changes to ChromaLyric will be documented in this file.
 - **Full Style Presets**: Theme Library now captures the complete visual identity of a style. In addition to colors, presets now save and restore Outline Thickness, Shadow Distance, and Shadow Transparency.
 
 ### Changed
-- **Robust Color Parsing**: Implemented "Safe" color collection with hex-based fallbacks to prevent application crashes when interacting with malformed or incomplete .ass style definitions.
+- **Robust Color Parsing**: Implemented "Safe" color collection with hex-based fallbacks to prevent application crashes when interacting with malformed or incomplete `.ass` style definitions.
 
 ## [1.8.0] - 2026-02-24
 
