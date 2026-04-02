@@ -162,3 +162,13 @@ ________________________________________________________________________________
 
 ### 💡 Design Philosophy
 ChromaLyric is intentionally focused and lightweight. It exists to make color experimentation fast and provide visual confidence before rendering.
+
+__________________________________________________________________________________________
+
+### 🍺 Acknowledgements
+Thank you to the creators at the [diveBar discord](https://discord.gg/diveBar). I'm proud to be one of you.
+
+Special thanks to my friends who have tested, suggested features, and occasionally broke the app:
+[It Might Be Karaoke](https://www.youtube.com/@ItMightBeKaraoke)
+[RankAmateur FeelgoodMachine's Oddball Karaoke](https://www.youtube.com/@RAFMOddballKaraoke)
+[Rose's Garden Variety Karaoke](https://www.youtube.com/@Roses-karaoke)
