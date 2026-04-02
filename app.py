@@ -17,16 +17,14 @@ import os
 import re
 import shutil
 import sys
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from PySide6.QtCore import QSettings, Qt, QThread, QTimer, QUrl, Signal
+from PySide6.QtCore import QSettings, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QAction,
     QColor,
-    QDesktopServices,
     QFont,
     QImage,
     QPainter,
@@ -57,7 +55,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-APP_VERSION = "v1.10.5"
 # Redefine what "100%" means for preview sizing.
 # 0.45 matches what you found readable as a baseline for 1080p-ish styles.
 BASE_PREVIEW_SCALE = 0.45
@@ -129,6 +126,7 @@ def load_color_names() -> List[Tuple[str, int, int, int]]:
         "Hermès Orange": "#F37021",
         "John Deere Green": "#367C2B",
         "Coca-Cola Red": "#F40009",
+        "Binghamton University Deep Green": "#005A43",
         # --- The Standard 140 CSS Colors ---
         "Alice Blue": "#F0F8FF",
         "Antique White": "#FAEBD7",
@@ -1196,33 +1194,6 @@ class ChromaPickerWindow(QDialog):
 
 
 # -----------------------------
-# GitHub Update Worker
-# -----------------------------
-
-
-class GitHubUpdateWorker(QThread):
-    update_available = Signal(str, str, str)  # latest_version, changelog, release_url
-
-    def run(self):
-        try:
-            # Pings your specific GitHub repository's latest release API
-            url = "https://api.github.com/repos/mattjoykaraoke/ChromaLyric/releases/latest"
-            req = urllib.request.Request(url, headers={"User-Agent": "ChromaLyric-App"})
-
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode())
-                latest_version = data.get("tag_name", "")
-                changelog = data.get("body", "No release notes provided.")
-                release_url = data.get("html_url", "")
-
-                self.update_available.emit(latest_version, changelog, release_url)
-        except Exception:
-            # If the user has no internet or GitHub is down, just fail silently.
-            # The app will open normally without bothering them.
-            pass
-
-
-# -----------------------------
 # Main window
 # -----------------------------
 
@@ -1236,8 +1207,6 @@ class MainWindow(QMainWindow):
 
         self.doc: Optional[AssDoc] = None
         self.current_path: Optional[str] = None
-        self.CURRENT_VERSION = APP_VERSION
-        self.check_for_updates()
 
         self.picker = None
 
@@ -1951,7 +1920,7 @@ class MainWindow(QMainWindow):
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br>'
             + '<a href="https://github.com/mattjoykaraoke" style="color: #708090;">github.com/mattjoykaraoke</a><br><br>'
-            + f"Version {APP_VERSION}.<br>"
+            + "Version 1.10.4.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
@@ -2275,51 +2244,13 @@ class MainWindow(QMainWindow):
                 return
         event.ignore()
 
-    def check_for_updates(self):
-        # Start the background checker
-        self.update_worker = GitHubUpdateWorker(self)
-        self.update_worker.update_available.connect(self.prompt_update)
-        self.update_worker.start()
 
-    def prompt_update(self, latest_version: str, changelog: str, release_url: str):
-        # Simple string comparison (e.g., 'v1.9.3' > 'v1.9.2')
-        if latest_version and latest_version > self.CURRENT_VERSION:
-            msg_box = QMessageBox(self)
-            msg_box.setWindowTitle("Update Available")
-            msg_box.setText(
-                f"A new version of ChromaLyric is available ({latest_version})!"
-            )
-
-            # Clean up the changelog so it doesn't blow up the user's screen
-            display_log = (
-                changelog
-                if len(changelog) < 600
-                else changelog[:600] + "\n\n... (Read more on GitHub)"
-            )
-
-            msg_box.setInformativeText(
-                f"What's New:\n{display_log}\n\nWould you like to download it now?"
-            )
-
-            yes_btn = msg_box.addButton(
-                "Yes, take me there", QMessageBox.ButtonRole.AcceptRole
-            )
-            no_btn = msg_box.addButton(
-                "Not right now", QMessageBox.ButtonRole.RejectRole
-            )
-            msg_box.setDefaultButton(yes_btn)
-
-            msg_box.exec()
-
-            if msg_box.clickedButton() == yes_btn:
-                QDesktopServices.openUrl(QUrl(release_url))
+import winreg
 
 
 def get_windows_accent_color():
     """Fetches the current Windows accent color from the registry."""
     try:
-        import winreg
-
         registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
         key = winreg.OpenKey(registry, r"Software\Microsoft\Windows\DWM")
         value, _ = winreg.QueryValueEx(key, "ColorizationColor")
