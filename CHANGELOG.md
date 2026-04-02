@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.10.5] - 2026-04-01
+
+### Added
+- **Update Notifications:** ChromaLyric now silently checks the GitHub repository on startup. If a newer release is detected, users will receive a gentle prompt featuring the new changelog and a direct link to download the latest installer.
+
 ## [1.10.4] - 2026-04-01
 
 ### Fixed
