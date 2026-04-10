@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+##
+
+### Added
+- **Color Update:** Newest (as of 4/1/2026) meodai/color-names library update. Why not?
+
 ## [1.10.5] - 2026-04-01
 
 ### Added
