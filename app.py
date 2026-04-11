@@ -57,7 +57,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-APP_VERSION = "v1.10.5"
+APP_VERSION = "v1.11.0"
 # Redefine what "100%" means for preview sizing.
 # 0.45 matches what you found readable as a baseline for 1080p-ish styles.
 BASE_PREVIEW_SCALE = 0.45
@@ -388,8 +388,9 @@ class AssDoc:
     format_cols: List[str]
     styles: List[AssStyle]
     style_line_indices: List[int]
-    first_dialogue_fallback: Optional[str]
-    first_dialogue_by_style: Dict[str, str]
+    all_dialogues: List[str]
+    dialogues_by_style: Dict[str, List[str]]
+    bg_color: Optional[str]
 
     @staticmethod
     def load(path: str) -> "AssDoc":
@@ -398,12 +399,15 @@ class AssDoc:
 
         # --- NEW: Strip out any previously generated ChromaLyric 3D layers ---
         lines = []
+        bg_color = None
         for l in raw_lines:
             if l.startswith("Dialogue:"):
                 # Split precisely to isolate the Effect column (index 8)
                 parts = l.split(":", 1)[1].split(",", 9)
                 if len(parts) == 10 and parts[8].strip().startswith("ChromaShadow"):
                     continue  # Skip this generated 3D layer
+            elif l.startswith("; kbputils_background_1.0 color:"):
+                bg_color = l.split("color:", 1)[1].strip()
             lines.append(l)
 
         section_name = None
@@ -453,24 +457,25 @@ class AssDoc:
             styles.append(AssStyle(name=name, fields=fields))
             style_line_indices.append(i)
 
-        first_fallback, by_style = AssDoc._extract_first_dialogues(lines)
+        all_dialogues, by_style = AssDoc._extract_dialogues(lines)
 
         return AssDoc(
             lines=lines,
             format_cols=format_cols,
             styles=styles,
             style_line_indices=style_line_indices,
-            first_dialogue_fallback=first_fallback,
-            first_dialogue_by_style=by_style,
+            all_dialogues=all_dialogues,
+            dialogues_by_style=by_style,
+            bg_color=bg_color,
         )
 
     @staticmethod
-    def _extract_first_dialogues(
+    def _extract_dialogues(
         lines: List[str],
-    ) -> Tuple[Optional[str], Dict[str, str]]:
+    ) -> Tuple[List[str], Dict[str, List[str]]]:
         in_events = False
         event_format: Optional[List[str]] = None
-        first_fallback = None
+        all_dialogues = []
         by_style = {}
 
         for l in lines:
@@ -503,16 +508,15 @@ class AssDoc:
 
                     if txt:
                         clean_txt = strip_ass_tags(txt)
-                        # Save the absolute first line as our fallback
-                        if first_fallback is None:
-                            first_fallback = clean_txt
-                        # Save the first line we see for each specific style
-                        if style and style not in by_style:
-                            by_style[style] = clean_txt
+                        all_dialogues.append(clean_txt)
+                        if style:
+                            if style not in by_style:
+                                by_style[style] = []
+                            by_style[style].append(clean_txt)
 
-        return first_fallback, by_style
+        return all_dialogues, by_style
 
-    def save_as(self, out_path: str) -> None:
+    def save_as(self, out_path: str, bg_color_hex: Optional[str] = None) -> None:
         import math
 
         # 1. Write the updated styles back to the header
@@ -534,6 +538,10 @@ class AssDoc:
         final_lines = []
 
         for line in self.lines:
+            # Filter out any existing background comment lines to prevent duplicates
+            if line.startswith("; kbputils_background_1.0 color:"):
+                continue
+
             # Only process dialogue lines
             if line.startswith("Dialogue:"):
                 prefix, payload = line.split(":", 1)
@@ -600,6 +608,10 @@ class AssDoc:
 
             # If it's not a Dialogue line or had no shadow logic, append it untouched
             final_lines.append(line)
+
+        # 3. Append the background color comment at the end of the file for kbputils
+        if bg_color_hex:
+            final_lines.append(f"; kbputils_background_1.0 color: {bg_color_hex}")
 
         # Write the final file
         Path(out_path).write_text(
@@ -1235,6 +1247,9 @@ class MainWindow(QMainWindow):
 
         self.doc: Optional[AssDoc] = None
         self.current_path: Optional[str] = None
+        self.style_line_idx: Dict[
+            str, int
+        ] = {}  # Tracks the current lyric index for each style
 
         self.picker = None
 
@@ -1348,9 +1363,13 @@ class MainWindow(QMainWindow):
         )
         self.preview_text.textChanged.connect(self.on_preview_text_changed)
 
-        self.use_first_line_btn = QPushButton("Use first line of lyrics")
+        self.use_first_line_btn = QPushButton("Use First Line of Lyrics")
         self.use_first_line_btn.clicked.connect(self.use_first_song_line)
         self.use_first_line_btn.setEnabled(False)
+
+        self.next_line_btn = QPushButton("Next Line")
+        self.next_line_btn.clicked.connect(self.next_song_line)
+        self.next_line_btn.setEnabled(False)
 
         # Zoom: percentage is relative to BASE_PREVIEW_SCALE
         self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
@@ -1392,14 +1411,11 @@ class MainWindow(QMainWindow):
         self.k_timer.setInterval(20)
         self.k_timer.timeout.connect(self.on_k_timer_tick)
 
-        # ChromaPicker Button
-        self.chroma_picker_btn = QPushButton("👁 ChromaPicker")
-        self.chroma_picker_btn.clicked.connect(self.open_chroma_picker)
-
         ctrl_row1 = QHBoxLayout()
         ctrl_row1.addWidget(QLabel("Text:"))
         ctrl_row1.addWidget(self.preview_text, 1)
         ctrl_row1.addWidget(self.use_first_line_btn)
+        ctrl_row1.addWidget(self.next_line_btn)
 
         ctrl_row2 = QHBoxLayout()
         ctrl_row2.addWidget(self.zoom_lbl)
@@ -1589,9 +1605,18 @@ class MainWindow(QMainWindow):
         colors_layout.addWidget(outline_container)
         colors_box.setLayout(colors_layout)
 
+        self.save_btn = QPushButton("Save")
+        self.save_btn.clicked.connect(self.save_file)
+        self.save_btn.setEnabled(False)
+
         self.save_as_btn = QPushButton("Save As…")
         self.save_as_btn.clicked.connect(self.save_as)
         self.save_as_btn.setEnabled(False)
+
+        save_layout = QHBoxLayout()
+        save_layout.addStretch(1)
+        save_layout.addWidget(self.save_btn)
+        save_layout.addWidget(self.save_as_btn)
 
         right = QVBoxLayout()
         right.addWidget(self.info)
@@ -1599,7 +1624,7 @@ class MainWindow(QMainWindow):
         right.addWidget(colors_box, stretch=1)
         right.addWidget(self.shadow_group, stretch=0)
         right.addStretch(0)
-        right.addWidget(self.save_as_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        right.addLayout(save_layout)
 
         right_wrap = QWidget()
         right_wrap.setLayout(right)
@@ -1621,6 +1646,13 @@ class MainWindow(QMainWindow):
         self.on_zoom_changed(
             self.zoom_slider.value()
         )  # apply BASE_PREVIEW_SCALE mapping
+
+    # ---- Format Helper for Background Hex ----
+    def format_bg_hex(self, c: QColor) -> str:
+        """Strips the FF alpha channel for the UI if it's solid, but keeps custom alpha if modified."""
+        if c.alpha() == 255:
+            return c.name(QColor.NameFormat.HexRgb).upper()  # #RRGGBB
+        return c.name(QColor.NameFormat.HexArgb).upper()  # #AARRGGBB
 
     # ---- Update Checker Logic ----
 
@@ -1710,18 +1742,34 @@ class MainWindow(QMainWindow):
             self.doc = AssDoc.load(path)
             self.current_path = path
 
+            # Parse background color if it exists in the loaded file
+            if self.doc.bg_color:
+                c = QColor(self.doc.bg_color)
+                if c.isValid():
+                    self.preview.set_bg_color(c)
+                    self.bg_hex.setText(self.format_bg_hex(c))
+
             self.styles_list.clear()
             for st in self.doc.styles:
                 self.styles_list.addItem(QListWidgetItem(st.name))
 
             self.info.setText(f"Loaded:\n{path}\n\nSelect a style to edit its colors.")
+
+            # Reset lyric tracking dictionary
+            self.style_line_idx = {}
+
+            self.save_btn.setEnabled(True)
             self.save_as_btn.setEnabled(True)
-            self.use_first_line_btn.setEnabled(bool(self.doc.first_dialogue_fallback))
+
+            # Enable lyric navigation if the document contains any lyrics
+            has_lyrics = bool(self.doc.all_dialogues)
+            self.use_first_line_btn.setEnabled(has_lyrics)
+            self.next_line_btn.setEnabled(has_lyrics)
 
             if self.doc.styles:
                 self.styles_list.setCurrentRow(0)
 
-            if self.doc.first_dialogue_fallback:
+            if has_lyrics:
                 self.use_first_song_line()
             else:
                 self.preview_text.setText("Sample Text  AaBb  123  ♪")
@@ -1740,7 +1788,9 @@ class MainWindow(QMainWindow):
     def on_style_selected(self, row: int):
         st = self.current_style()
         self.preview.set_style(st)
-        self.use_first_song_line()
+
+        # When swapping styles, automatically jump to the currently tracked lyric for that style
+        self.show_current_song_line()
 
         if not st:
             self.sw_highlight.set_rgba(None)
@@ -1834,7 +1884,7 @@ class MainWindow(QMainWindow):
     def receive_chromapicker_color(self, target: str, color: QColor):
         if target == "Background":
             self.preview.set_bg_color(color)
-            self.bg_hex.setText(color.name().upper())
+            self.bg_hex.setText(self.format_bg_hex(color))
             return
 
         st = self.current_style()
@@ -1939,18 +1989,35 @@ class MainWindow(QMainWindow):
         if action == swap_action:
             self.swap_highlight_base()
 
+    def save_file(self):
+        """Directly overwrites the opened file without prompting the file dialog."""
+        if not self.doc or not self.current_path:
+            return
+        self._do_save(self.current_path)
+
     def save_as(self):
+        """Prompts the file dialog to create a non-destructive copy."""
         if not self.doc or not self.current_path:
             return
         default_out = str(Path(self.current_path).with_suffix("")) + "_edited.ass"
         out_path, _ = QFileDialog.getSaveFileName(
             self, "Save ASS As", default_out, "ASS (*.ass)"
         )
-        if not out_path:
-            return
+        if out_path:
+            self._do_save(out_path)
+
+    def _do_save(self, out_path: str):
+        """Helper to process the actual file save operation."""
         try:
-            self.doc.save_as(out_path)
-            QMessageBox.information(self, "Saved", f"Saved:\n{out_path}")
+            # Force format to HexArgb (#AARRGGBB) for kbputils compatibility
+            bg_hex_for_file = self.preview.bg_color.name(
+                QColor.NameFormat.HexArgb
+            ).upper()
+
+            self.doc.save_as(out_path, bg_color_hex=bg_hex_for_file)
+            QMessageBox.information(
+                self, "Saved", f"Saved successfully to:\n{out_path}"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Save error", str(e))
 
@@ -2015,22 +2082,45 @@ class MainWindow(QMainWindow):
     def on_preview_text_changed(self, text: str):
         self.preview.set_text(text.replace("\\N", "\n"))
 
-    def use_first_song_line(self):
+    def show_current_song_line(self):
+        """Displays the lyric for the currently selected style based on its tracked index."""
         if not self.doc:
             return
 
         st = self.current_style()
         text_to_use = None
 
-        # 1. Try to get the first line for the currently selected style
-        if st and st.name in self.doc.first_dialogue_by_style:
-            text_to_use = self.doc.first_dialogue_by_style[st.name]
-        # 2. Fall back to the very first line of the file
-        elif self.doc.first_dialogue_fallback:
-            text_to_use = self.doc.first_dialogue_fallback
+        if st and st.name in self.doc.dialogues_by_style:
+            style_lines = self.doc.dialogues_by_style[st.name]
+            if style_lines:
+                # Grab the index for this specific style (defaults to 0)
+                idx = self.style_line_idx.get(st.name, 0)
+                text_to_use = style_lines[idx]
+
+        # Fall back to the absolute first line of the file if the style has no lines
+        if not text_to_use and self.doc.all_dialogues:
+            text_to_use = self.doc.all_dialogues[0]
 
         if text_to_use:
             self.preview_text.setText(text_to_use[:200])
+
+    def use_first_song_line(self):
+        """Resets the tracker for the current style to index 0."""
+        st = self.current_style()
+        if st:
+            self.style_line_idx[st.name] = 0
+        self.show_current_song_line()
+
+    def next_song_line(self):
+        """Increments the tracker for the current style and loops back to 0 if at the end."""
+        st = self.current_style()
+        if st and st.name in self.doc.dialogues_by_style:
+            style_lines = self.doc.dialogues_by_style[st.name]
+            if style_lines:
+                current_idx = self.style_line_idx.get(st.name, 0)
+                # Wrap around using modulo
+                self.style_line_idx[st.name] = (current_idx + 1) % len(style_lines)
+        self.show_current_song_line()
 
     def pick_bg(self):
         initial = self.preview.bg_color
@@ -2038,22 +2128,24 @@ class MainWindow(QMainWindow):
         if not chosen.isValid():
             return
         self.preview.set_bg_color(chosen)
-        self.bg_hex.setText(chosen.name().upper())
+        self.bg_hex.setText(self.format_bg_hex(chosen))
 
     def on_bg_hex_changed(self):
         t = self.bg_hex.text().strip()
-        if not re.fullmatch(r"#?[0-9A-Fa-f]{6}", t):
-            QMessageBox.warning(self, "Invalid hex", "Enter a hex color like #1E1E1E")
-            return
+
         if not t.startswith("#"):
             t = "#" + t
+
         c = QColor(t)
         if not c.isValid():
             QMessageBox.warning(
                 self, "Invalid hex", "That hex color couldn't be parsed."
             )
             return
+
         self.preview.set_bg_color(c)
+        # Instantly format it back (e.g. if they typed a 6-char hex, keep it 6, if 8, keep 8)
+        self.bg_hex.setText(self.format_bg_hex(c))
 
     def on_k_changed(self, v: int):
         self.k_lbl.setText(f"K: {v}%")

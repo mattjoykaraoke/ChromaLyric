@@ -2,10 +2,15 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
-##
+## [1.11.0] - 2026-04-10
 
 ### Added
 - **Color Update:** Newest (as of 4/1/2026) meodai/color-names library update. Why not?
+- **Update to BG Hex Formatting:** The Background UI now intelligently accepts transparency. It displays 6-digit hex codes (#RRGGBB) for solid colors but automatically expands to 8-digit hex codes (#AARRGGBB) if alpha/transparency is detected or manually entered. Not all video formats accept transparency but with `kbputils`, the rules should make sense.
+- **kbputils Compatibility:** Added support for the upcoming `; kbputils_background_1.0 color: #AARRBBGG` tag. Anytime you save a `.ass` file the comment will be appended to the file and provide direct background alpha and hex to the program. 
+- **Style-Aware Lookup:** The "Use First Line of Lyrics" button now specifically searches for the first line of text tied to the currently selected Style.
+- **Next Line Functionality:** Added a "Next Line" button that allows you to cycle through every lyric line associated with your selected style.
+- **Direct Save:** Added a "Save" button to the main interface for instant, destructive overwriting of the current `.ass` file for streamling work with `kbp2video` or `Matt Joy Karaoke Creation Suite` (not yet available to public).
 
 ## [1.10.5] - 2026-04-01
 
