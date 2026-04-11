@@ -17,14 +17,16 @@ import os
 import re
 import shutil
 import sys
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from PySide6.QtCore import QSettings, Qt, QTimer, Signal
+from PySide6.QtCore import QSettings, Qt, QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QColor,
+    QDesktopServices,
     QFont,
     QImage,
     QPainter,
@@ -55,6 +57,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+APP_VERSION = "v1.10.5"
 # Redefine what "100%" means for preview sizing.
 # 0.45 matches what you found readable as a baseline for 1080p-ish styles.
 BASE_PREVIEW_SCALE = 0.45
@@ -97,6 +100,7 @@ def load_color_names() -> List[Tuple[str, int, int, int]]:
         "Cloak Gray": "#B6B6B6",
         "Untanned Aghastronaut": "#FFF5E5",
         "Rank Amateur Feelgood Purpureus": "#9500b3",
+        "The Most Evocative Shade of Deepest Indigo": "#120033",
         # --- Creator & Brand Colors ---
         "Spotify Green": "#1DB954",
         "Twitch Purple": "#9146FF",
@@ -628,6 +632,30 @@ def style_set_color(style: AssStyle, key: str, rgba: Tuple[int, int, int, int]) 
         raise KeyError(f"Style format does not include '{key}'.")
     r, g, b, a = rgba
     style.fields[key] = format_ass_color(r, g, b, a)
+
+
+# -----------------------------
+# GitHub Update Worker
+# -----------------------------
+
+
+class GitHubUpdateWorker(QThread):
+    """Checks for new releases in the background to avoid freezing the UI."""
+
+    update_available = Signal(str, str, str)  # latest_version, release_notes, url
+
+    def run(self):
+        try:
+            url = "https://api.github.com/repos/mattjoykaraoke/ChromaLyric/releases/latest"
+            req = urllib.request.Request(url, headers={"User-Agent": "ChromaLyric-App"})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                latest_version = data.get("tag_name", "")
+                release_notes = data.get("body", "")
+                html_url = data.get("html_url", "")
+                self.update_available.emit(latest_version, release_notes, html_url)
+        except Exception:
+            pass  # Fail silently if offline or API limit reached
 
 
 # -----------------------------
@@ -1210,6 +1238,14 @@ class MainWindow(QMainWindow):
 
         self.picker = None
 
+        self.CURRENT_VERSION = APP_VERSION
+
+        # Initialize the "Memory"
+        self.settings = QSettings("MattJoy", "ChromaLyric")
+
+        # --- NEW: Launch Update Checker in the background ---
+        self.check_for_updates()
+
         # Left
         self.drop = DropWidget()
         self.drop.fileDropped.connect(self.load_ass)
@@ -1289,8 +1325,6 @@ class MainWindow(QMainWindow):
         self.chroma_picker_btn.clicked.connect(self.open_chroma_picker)
         left.addWidget(self.chroma_picker_btn)
 
-        # Initialize the "Memory"
-        self.settings = QSettings("MattJoy", "ChromaLyric")
         self.presets = []
         self.load_presets()
         self.load_custom_colors()
@@ -1587,6 +1621,27 @@ class MainWindow(QMainWindow):
         self.on_zoom_changed(
             self.zoom_slider.value()
         )  # apply BASE_PREVIEW_SCALE mapping
+
+    # ---- Update Checker Logic ----
+
+    def check_for_updates(self):
+        self.update_worker = GitHubUpdateWorker()
+        self.update_worker.update_available.connect(self.prompt_update)
+        self.update_worker.start()
+
+    def prompt_update(self, latest_version: str, release_notes: str, url: str):
+        # Basic check to ensure the fetched tag is actually a newer version
+        if latest_version and latest_version > self.CURRENT_VERSION:
+            reply = QMessageBox.question(
+                self,
+                "Update Available",
+                f"A new version of ChromaLyric ({latest_version}) is available!\n\n"
+                f"You are currently running {self.CURRENT_VERSION}.\n\n"
+                "Would you like to open the download page?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                QDesktopServices.openUrl(QUrl(url))
 
     # ---- Outline / Shadow editing ----
 
@@ -1920,7 +1975,7 @@ class MainWindow(QMainWindow):
             "Vibe Coded in 2026 by Matt Joy.<br>"
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br>'
             + '<a href="https://github.com/mattjoykaraoke" style="color: #708090;">github.com/mattjoykaraoke</a><br><br>'
-            + "Version 1.10.4.<br>"
+            + f"Version {APP_VERSION}.<br>"
             + "Built with Qt / PySide6 (LGPL v3).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
