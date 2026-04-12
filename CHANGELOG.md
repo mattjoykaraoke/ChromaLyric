@@ -2,6 +2,14 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.12.0] - 2026-04-11
+
+### Added
+- **New Typography Drawer:** Added a collapsible Typography drawer giving you direct control over Typeface, Font Size, Bold, and Italic formatting without ever opening a text editor. 
+- **Size Sync:** Checkbox toggle (default ON) allows adjusting the font size for all styles at once or using the Snap tool to automatically shrink any render that would break the 1080p bounding box (simulated ffmpeg and libass collision logic with `.setPixelSize()` for the calculations and ignores complex extra lines for shadow simulation). The Snap tool does not increase size of the fonts to maximum, you would need to overshoot the maximum and click the tool to snap down to maximum, if that's your style.
+- **Typeface Sync:** Checkbox toggle (default OFF) allows for changing the typeface of all styles to the same thing but you can still use different fonts for different styles if you want.
+- **Theme Purity:** Font choices and sizes are saved directly to your `.ass` file, but they are strictly isolated from your Theme Presets. Applying a saved color preset from your library will only update your colors and shadows, ensuring your carefully balanced 1080p typography is never accidentally overwritten.
+
 ## [1.11.0] - 2026-04-10
 
 ### Added
