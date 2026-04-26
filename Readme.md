@@ -27,7 +27,7 @@ ________________________________________________________________________________
 ChromaLyric focuses on style-level editing inside .ass subtitle files:
 
 * 🎨 **Edit Colors:** PrimaryColour, SecondaryColour, OutlineColour, and BackColour
-* 🖥 **Live Preview:** Real-time preview of styles
+* 🖥 **Live Preview:** Real-time preview of styles on a chosen color or video background
 * 🎶 **Karaoke Simulation:** Always-on karaoke highlight simulation
 * 🔎 **Adjustable Zoom:** Zoom the preview for fine-tuning
 * 🎚 **Karaoke Progress:** Adjustable swipe progress slider
