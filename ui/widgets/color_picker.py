@@ -191,10 +191,18 @@ class ChromaPickerWindow(QDialog):
         self.clear_btn = QPushButton("🗑 Clear Palette")
         self.clear_btn.clicked.connect(self.color_list.clear)
 
+        self.extract_btn = QPushButton("🎨 Extract 6 Colors")
+        self.extract_btn.setEnabled(False) # Disabled until image loads
+        self.extract_btn.clicked.connect(self.extract_palette_from_image)
+
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(self.extract_btn)
+        btn_row.addWidget(self.clear_btn)
+
         right_layout = QVBoxLayout()
         right_layout.addWidget(QLabel("<b>Extracted Palette</b>"))
         right_layout.addWidget(self.color_list)
-        right_layout.addWidget(self.clear_btn)
+        right_layout.addLayout(btn_row)
 
         main_layout = QHBoxLayout()
         main_layout.addLayout(left_layout, stretch=3)
@@ -207,6 +215,7 @@ class ChromaPickerWindow(QDialog):
         )
         if path:
             self.dropper.load_image(path)
+            self.extract_btn.setEnabled(True)
 
     def add_color_to_list(self, color: QColor):
         item = QListWidgetItem(self.color_list)
@@ -233,6 +242,33 @@ class ChromaPickerWindow(QDialog):
                 ext = Path(path).suffix.lower()
                 if ext in [".png", ".jpg", ".jpeg"]:
                     self.dropper.load_image(path)
+                    self.extract_btn.setEnabled(True)
                     event.acceptProposedAction()
                     return
         event.ignore()
+
+    def extract_palette_from_image(self):
+        if not self.dropper.source_image or self.dropper.source_image.isNull():
+            return
+            
+        self.extract_btn.setEnabled(False)
+        
+        img = self.dropper.source_image.scaled(15, 15)
+        colors = []
+        for x in range(img.width()):
+            for y in range(img.height()):
+                c = img.pixelColor(x, y)
+                r, g, b = c.red(), c.green(), c.blue()
+                
+                # Minimum distance formula to ensure distinct colors
+                if not any((r-er)**2 + (g-eg)**2 + (b-eb)**2 < 4000 for er, eg, eb in colors):
+                    colors.append((r, g, b))
+                
+                if len(colors) >= 6:
+                    break
+            if len(colors) >= 6:
+                break
+                
+        # Insert them in reverse order so they appear top-to-bottom as extracted
+        for r, g, b in reversed(colors):
+            self.add_color_to_list(QColor(r, g, b))

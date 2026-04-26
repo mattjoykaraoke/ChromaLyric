@@ -2,6 +2,19 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.13.1] - 2026-04-25
+
+### Added
+- **CLI Mode:** Added a command-line interface mode to the application.
+- **Undo/Redo System:** Added an Undo/Redo system to the application.
+- **Project Versioning:** Added a versioning system to the project.
+- **Palette Extraction:** Added a palette extraction system to the application.
+
+## [1.13.0] - 2026-04-25
+
+### Added
+- **Package Architecture Update:** Broke the monolithic file into relevant parts.
+
 ## [1.12.2] - 2026-04-11
 
 ### Fixed

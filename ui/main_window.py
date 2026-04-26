@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from PySide6.QtCore import QSettings, Qt, QTimer, QUrl
-from PySide6.QtGui import QColor, QDesktopServices, QFont, QIcon, QPixmap, QCursor
+from PySide6.QtGui import QColor, QDesktopServices, QFont, QIcon, QPixmap, QCursor, QShortcut, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
     QColorDialog,
@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from core.ass_parser import AssDoc, AssStyle, style_get_color, style_get_int, style_set_color
 from core.colors import nearest_color_name
 from core.utils import resource_path
+from core.project import KaraokeProject
 from ui.widgets.ass_preview import AssPreviewWidget
 from ui.widgets.color_picker import ChromaPickerWindow
 from ui.widgets.drop_widget import DropWidget, is_supported_file
@@ -43,8 +44,7 @@ class MainWindow(QMainWindow):
         self.resize(1220, 780)
         self.setAcceptDrops(True)
 
-        self.doc: Optional[AssDoc] = None
-        self.current_path: Optional[str] = None
+        self.project = KaraokeProject()
         self.style_line_idx: Dict[str, int] = {}
 
         self.picker = None
@@ -53,6 +53,12 @@ class MainWindow(QMainWindow):
         self.base_preview_scale = base_preview_scale
 
         self.check_for_updates()
+
+        # Shortcuts
+        self.undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
+        self.undo_shortcut.activated.connect(self.undo)
+        self.redo_shortcut = QShortcut(QKeySequence.StandardKey.Redo, self)
+        self.redo_shortcut.activated.connect(self.redo)
 
         # Left Column
         self.drop = DropWidget()
@@ -245,7 +251,7 @@ class MainWindow(QMainWindow):
         self.outline_spin.setRange(0, 20)
         self.outline_spin.setSingleStep(1)
         self.outline_spin.setFixedWidth(60)
-        self.outline_spin.valueChanged.connect(self.on_outline_changed)
+        self.outline_spin.editingFinished.connect(self.on_outline_changed)
 
         colors_box = QGroupBox("Style Colors")
         colors_layout = QHBoxLayout()
@@ -280,7 +286,7 @@ class MainWindow(QMainWindow):
         tf_row = QHBoxLayout()
         tf_row.addWidget(QLabel("Typeface:"))
         self.font_combo = QFontComboBox()
-        self.font_combo.currentFontChanged.connect(self.on_font_name_changed)
+        self.font_combo.activated.connect(self.on_font_name_changed)
         tf_row.addWidget(self.font_combo, 1)
 
         self.sync_typefaces_cb = QCheckBox("Sync All Styles")
@@ -293,7 +299,7 @@ class MainWindow(QMainWindow):
         sz_row.addWidget(QLabel("Size (pt):"))
         self.font_size_spin = QSpinBox()
         self.font_size_spin.setRange(1, 400)
-        self.font_size_spin.valueChanged.connect(self.on_font_size_changed)
+        self.font_size_spin.editingFinished.connect(self.on_font_size_changed)
         sz_row.addWidget(self.font_size_spin)
 
         self.sync_sizes_cb = QCheckBox("Sync All Styles")
@@ -341,7 +347,7 @@ class MainWindow(QMainWindow):
         self.shadow_distance.setRange(0, 20)
         self.shadow_distance.setSingleStep(1)
         self.shadow_distance.setFixedWidth(60)
-        self.shadow_distance.valueChanged.connect(self.on_shadow_distance_changed)
+        self.shadow_distance.editingFinished.connect(self.on_shadow_distance_changed)
 
         self.shadow_opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.shadow_opacity_slider.setRange(0, 100)
@@ -357,7 +363,12 @@ class MainWindow(QMainWindow):
         self.shadow_opacity_spin.valueChanged.connect(
             self.shadow_opacity_slider.setValue
         )
-        self.shadow_opacity_spin.valueChanged.connect(self.on_shadow_opacity_changed)
+        # Only commit change on release
+        self.shadow_opacity_slider.sliderReleased.connect(self.on_shadow_opacity_changed)
+        self.shadow_opacity_spin.editingFinished.connect(self.on_shadow_opacity_changed)
+
+        # Update preview while sliding
+        self.shadow_opacity_slider.valueChanged.connect(self.preview_shadow_opacity)
 
         self.sw_shadow = SwatchControl("Shadow (BackColour)")
         self.sw_shadow.clicked.connect(lambda: self.pick_color("BackColour"))
@@ -380,7 +391,7 @@ class MainWindow(QMainWindow):
         self.shadow_steps.setSuffix(" layers")
         self.shadow_steps.setFixedWidth(80)
         self.shadow_steps.setEnabled(False)
-        self.shadow_steps.valueChanged.connect(self.on_shadow_steps_changed)
+        self.shadow_steps.editingFinished.connect(self.on_shadow_steps_changed)
 
         row1 = QHBoxLayout()
         row1.addWidget(self.shadow_angle_picker)
@@ -484,6 +495,27 @@ class MainWindow(QMainWindow):
         self.italic_cb.setEnabled(False)
         self.snap_safe_btn.setEnabled(False)
 
+    def undo(self):
+        if self.project.undo():
+            self._refresh_ui_after_state_change()
+
+    def redo(self):
+        if self.project.redo():
+            self._refresh_ui_after_state_change()
+
+    def _refresh_ui_after_state_change(self):
+        # Full UI refresh to match new state
+        if self.project.doc and self.project.doc.bg_color:
+            c = QColor(self.project.doc.bg_color)
+            if c.isValid():
+                self.preview.set_bg_color(c)
+                self.bg_hex.setText(self.format_bg_hex(c))
+        
+        # update current style selection panel
+        idx = self.styles_list.currentRow()
+        if idx >= 0:
+            self.on_style_selected(idx)
+
     # ---- Format Helper for Background Hex ----
     def format_bg_hex(self, c: QColor) -> str:
         if c.alpha() == 255:
@@ -515,11 +547,6 @@ class MainWindow(QMainWindow):
     def _check_timeline_safety(
         self, size: int, fontname: str, bold: bool, italic: bool
     ) -> tuple[bool, str]:
-        r"""
-        Uses a sweep-line algorithm with literal ASS mathematical bounding box tracking.
-        It perfectly honors \pos(x,y) coordinates and ASS Scale rules to check for text crashing.
-        This completely defeats broken font metadata and missing/uninstalled custom fonts.
-        """
         from PySide6.QtGui import QFontMetrics
         from core.ass_parser import strip_ass_tags
 
@@ -537,7 +564,7 @@ class MainWindow(QMainWindow):
         style_scaley = {}
         style_sizes = {}
 
-        for st in self.doc.styles:
+        for st in self.project.doc.styles:
             sz = (
                 size
                 if (st.name == current_st.name or sync_sz)
@@ -574,7 +601,7 @@ class MainWindow(QMainWindow):
             style_sizes[st.name] = sz
 
         events = []
-        for i, diag in enumerate(self.doc.parsed_dialogues):
+        for i, diag in enumerate(self.project.doc.parsed_dialogues):
             events.append((diag["start"], "start", i))
             events.append((diag["end"], "end", i))
 
@@ -593,7 +620,7 @@ class MainWindow(QMainWindow):
                 align_groups = {}
 
                 for active_idx in active_diags:
-                    d = self.doc.parsed_dialogues[active_idx]
+                    d = self.project.doc.parsed_dialogues[active_idx]
                     metrics = style_metrics.get(d["style"])
                     if not metrics:
                         continue
@@ -604,8 +631,6 @@ class MainWindow(QMainWindow):
                     sy = style_scaley.get(d["style"], 1.0)
                     sz = style_sizes.get(d["style"], 48)
 
-                    # TRUE ASS MATHEMATICAL HEIGHT
-                    # This completely ignores Qt's font parsing and relies purely on the ASS spec
                     h = sz * sy * len(d["lines"])
 
                     w = 0
@@ -660,7 +685,6 @@ class MainWindow(QMainWindow):
                     for j in range(i + 1, len(unique_rects)):
                         _, L1, T1, R1, B1 = unique_rects[i]
                         _, L2, T2, R2, B2 = unique_rects[j]
-                        # Using pure ASS math, 1px tolerance correctly identifies overlap
                         if L1 < R2 - 1 and R1 > L2 + 1 and T1 < B2 - 1 and B1 > T2 + 1:
                             return (
                                 False,
@@ -687,8 +711,7 @@ class MainWindow(QMainWindow):
         self.typography_body.setVisible(checked)
 
     def check_font_boundaries(self):
-        """Measures the global timeline to ensure lyrics don't crash or exceed 1920x1080"""
-        if not self.doc or not self.doc.parsed_dialogues:
+        if not self.project.doc or not self.project.doc.parsed_dialogues:
             return
 
         ui_fontname = self.font_combo.currentText()
@@ -709,18 +732,18 @@ class MainWindow(QMainWindow):
             self.font_size_spin.setStyleSheet("")
             self.font_size_spin.setToolTip("Font Size (pt)")
 
-    def on_font_name_changed(self, font: QFont):
+    def on_font_name_changed(self, idx: int):
         st = self.current_style()
         if not st:
             return
-
         fontname = self.font_combo.currentText()
         if self.sync_typefaces_cb.isChecked():
-            for s in self.doc.styles:
+            for s in self.project.doc.styles:
                 s.fields["Fontname"] = fontname
         else:
             st.fields["Fontname"] = fontname
 
+        self.project.commit_change()
         self.check_font_boundaries()
         self.preview.update()
 
@@ -734,8 +757,9 @@ class MainWindow(QMainWindow):
                 QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             )
             if reply == QMessageBox.StandardButton.Ok:
-                for s in self.doc.styles:
+                for s in self.project.doc.styles:
                     s.fields["Fontname"] = current_font_text
+                self.project.commit_change()
                 self.check_font_boundaries()
                 self.preview.update()
             else:
@@ -743,17 +767,18 @@ class MainWindow(QMainWindow):
                 self.sync_typefaces_cb.setChecked(False)
                 self.sync_typefaces_cb.blockSignals(False)
 
-    def on_font_size_changed(self, size: int):
+    def on_font_size_changed(self):
         st = self.current_style()
         if not st:
             return
-
+        size = self.font_size_spin.value()
         if self.sync_sizes_cb.isChecked():
-            for s in self.doc.styles:
+            for s in self.project.doc.styles:
                 s.fields["Fontsize"] = str(size)
         else:
             st.fields["Fontsize"] = str(size)
 
+        self.project.commit_change()
         self.check_font_boundaries()
         self.preview.update()
 
@@ -762,19 +787,18 @@ class MainWindow(QMainWindow):
         if not st:
             return
 
-        # Standard ASS boolean
         b_val = "-1" if self.bold_cb.isChecked() else "0"
         i_val = "-1" if self.italic_cb.isChecked() else "0"
 
         st.fields["Bold"] = b_val
         st.fields["Italic"] = i_val
 
+        self.project.commit_change()
         self.check_font_boundaries()
         self.preview.update()
 
     def snap_to_safe_size(self):
-        """Automatically shrinks the font until ALL lyrics fit without crashing or bleeding off 1080p edges."""
-        if not self.doc or not self.doc.parsed_dialogues:
+        if not self.project.doc or not self.project.doc.parsed_dialogues:
             return
 
         ui_fontname = self.font_combo.currentText()
@@ -782,7 +806,6 @@ class MainWindow(QMainWindow):
         ui_italic = self.italic_cb.isChecked()
         size = self.font_size_spin.value()
 
-        # Keep silently testing smaller sizes across the entire song until it fits perfectly
         while size > 1:
             is_safe, _ = self._check_timeline_safety(
                 size, ui_fontname, ui_bold, ui_italic
@@ -791,16 +814,18 @@ class MainWindow(QMainWindow):
                 break
             size -= 1
 
-        # Automatically updates the UI and syncs styles!
         self.font_size_spin.setValue(size)
+        self.on_font_size_changed() # this will commit_change
 
     # ---- Outline / Shadow editing ----
 
-    def on_outline_changed(self, value: int):
+    def on_outline_changed(self):
         st = self.current_style()
         if not st:
             return
+        value = self.outline_spin.value()
         st.fields["Outline"] = str(value)
+        self.project.commit_change()
         self.preview.update()
 
     def on_shadow_group_toggled(self, checked: bool):
@@ -811,11 +836,13 @@ class MainWindow(QMainWindow):
         self.sw_shadow.setEnabled(checked)
         self.quick_black_btn.setEnabled(checked)
 
-    def on_shadow_distance_changed(self, value: int):
+    def on_shadow_distance_changed(self):
         st = self.current_style()
         if not st:
             return
+        value = self.shadow_distance.value()
         st.fields["Shadow"] = str(value)
+        self.project.commit_change()
         self.preview.update()
 
     def on_shadow_angle_changed(self, angle: int):
@@ -823,6 +850,7 @@ class MainWindow(QMainWindow):
         st = self.current_style()
         if st:
             st.fields["ChromaAngle"] = str(angle)
+            self.project.commit_change()
         self.preview.update()
 
     def on_shadow_3d_toggled(self, checked: bool):
@@ -831,16 +859,36 @@ class MainWindow(QMainWindow):
         st = self.current_style()
         if st:
             st.fields["Chroma3D"] = "True" if checked else "False"
+            self.project.commit_change()
         self.preview.update()
 
-    def on_shadow_steps_changed(self, steps: int):
+    def on_shadow_steps_changed(self):
+        steps = self.shadow_steps.value()
         self.preview.shadow_steps = steps
         st = self.current_style()
         if st:
             st.fields["ChromaSteps"] = str(steps)
+            self.project.commit_change()
         self.preview.update()
 
-    def on_shadow_opacity_changed(self, pct: int):
+    def preview_shadow_opacity(self, pct: int):
+        # Only updates the preview visually while dragging, does not commit to state
+        st = self.current_style()
+        if not st:
+            return
+        pct = max(0, min(100, int(pct)))
+        alpha = int(round(pct * 255 / 100))
+        col = style_get_color(st, "BackColour") or (0, 0, 0, alpha)
+        r, g, b, _ = col
+        
+        # update preview temporarily without modifying project state yet
+        st.fields["BackColour"] = f"&H{alpha:02X}{b:02X}{g:02X}{r:02X}"
+        self.sw_shadow.set_rgba((r, g, b, alpha))
+        self.preview.update()
+
+    def on_shadow_opacity_changed(self):
+        # Fires on release
+        pct = self.shadow_opacity_spin.value()
         st = self.current_style()
         if not st:
             return
@@ -851,23 +899,24 @@ class MainWindow(QMainWindow):
         r, g, b, _ = col
         style_set_color(st, "BackColour", (r, g, b, alpha))
         self.sw_shadow.set_rgba((r, g, b, alpha))
+        
+        self.project.commit_change()
         self.preview.update()
 
     # ---- File loading ----
 
     def load_ass(self, path: str):
         try:
-            self.doc = AssDoc.load(path)
-            self.current_path = path
-
-            if self.doc.bg_color:
-                c = QColor(self.doc.bg_color)
+            self.project.load(path)
+            
+            if self.project.doc.bg_color:
+                c = QColor(self.project.doc.bg_color)
                 if c.isValid():
                     self.preview.set_bg_color(c)
                     self.bg_hex.setText(self.format_bg_hex(c))
 
             self.styles_list.clear()
-            for st in self.doc.styles:
+            for st in self.project.doc.styles:
                 self.styles_list.addItem(QListWidgetItem(st.name))
 
             self.info.setText(f"Loaded:\n{path}\n\nSelect a style to edit its colors.")
@@ -881,11 +930,11 @@ class MainWindow(QMainWindow):
             self.italic_cb.setEnabled(True)
             self.snap_safe_btn.setEnabled(True)
 
-            has_lyrics = bool(self.doc.all_dialogues)
+            has_lyrics = bool(self.project.doc.all_dialogues)
             self.use_first_line_btn.setEnabled(has_lyrics)
             self.next_line_btn.setEnabled(has_lyrics)
 
-            if self.doc.styles:
+            if self.project.doc.styles:
                 self.styles_list.setCurrentRow(0)
 
             if has_lyrics:
@@ -897,12 +946,12 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Load error", str(e))
 
     def current_style(self) -> Optional[AssStyle]:
-        if not self.doc:
+        if not self.project.doc:
             return None
         idx = self.styles_list.currentRow()
-        if idx < 0 or idx >= len(self.doc.styles):
+        if idx < 0 or idx >= len(self.project.doc.styles):
             return None
-        return self.doc.styles[idx]
+        return self.project.doc.styles[idx]
 
     def on_style_selected(self, row: int):
         st = self.current_style()
@@ -1035,6 +1084,9 @@ class MainWindow(QMainWindow):
         if target == "Background":
             self.preview.set_bg_color(color)
             self.bg_hex.setText(self.format_bg_hex(color))
+            if self.project.doc:
+                self.project.doc.bg_color = self.format_bg_hex(color)
+                self.project.commit_change()
             return
 
         st = self.current_style()
@@ -1058,6 +1110,7 @@ class MainWindow(QMainWindow):
         alpha = current[3]
         style_set_color(st, target, (color.red(), color.green(), color.blue(), alpha))
         self.save_custom_colors()
+        self.project.commit_change()
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
@@ -1077,6 +1130,8 @@ class MainWindow(QMainWindow):
 
         self.save_custom_colors()
         style_set_color(st, key, (chosen.red(), chosen.green(), chosen.blue(), a))
+        
+        self.project.commit_change()
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
@@ -1087,6 +1142,7 @@ class MainWindow(QMainWindow):
         current = style_get_color(st, "BackColour") or (0, 0, 0, 0)
         _, _, _, a = current
         style_set_color(st, "BackColour", (0, 0, 0, a))
+        self.project.commit_change()
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
@@ -1098,6 +1154,7 @@ class MainWindow(QMainWindow):
         sec = style_get_color(st, "SecondaryColour") or (255, 255, 0, 0)
         style_set_color(st, "PrimaryColour", sec)
         style_set_color(st, "SecondaryColour", prim)
+        self.project.commit_change()
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
@@ -1110,14 +1167,14 @@ class MainWindow(QMainWindow):
             self.swap_highlight_base()
 
     def save_file(self):
-        if not self.doc or not self.current_path:
+        if not self.project.doc or not self.project.current_path:
             return
-        self._do_save(self.current_path)
+        self._do_save(self.project.current_path)
 
     def save_as(self):
-        if not self.doc or not self.current_path:
+        if not self.project.doc or not self.project.current_path:
             return
-        default_out = str(Path(self.current_path).with_suffix("")) + "_edited.ass"
+        default_out = str(Path(self.project.current_path).with_suffix("")) + "_edited.ass"
         out_path, _ = QFileDialog.getSaveFileName(
             self, "Save ASS As", default_out, "ASS (*.ass)"
         )
@@ -1126,10 +1183,7 @@ class MainWindow(QMainWindow):
 
     def _do_save(self, out_path: str):
         try:
-            bg_hex_for_file = self.preview.bg_color.name(
-                QColor.NameFormat.HexArgb
-            ).upper()
-            self.doc.save_as(out_path, bg_color_hex=bg_hex_for_file)
+            self.project.save(out_path)
             QMessageBox.information(
                 self, "Saved", f"Saved successfully to:\n{out_path}"
             )
@@ -1196,19 +1250,19 @@ class MainWindow(QMainWindow):
         self.preview.set_text(text.replace("\\N", "\n"))
 
     def show_current_song_line(self):
-        if not self.doc:
+        if not self.project.doc:
             return
         st = self.current_style()
         text_to_use = None
 
-        if st and st.name in self.doc.dialogues_by_style:
-            style_lines = self.doc.dialogues_by_style[st.name]
+        if st and st.name in self.project.doc.dialogues_by_style:
+            style_lines = self.project.doc.dialogues_by_style[st.name]
             if style_lines:
                 idx = self.style_line_idx.get(st.name, 0)
                 text_to_use = style_lines[idx]
 
-        if not text_to_use and self.doc.all_dialogues:
-            text_to_use = self.doc.all_dialogues[0]
+        if not text_to_use and self.project.doc.all_dialogues:
+            text_to_use = self.project.doc.all_dialogues[0]
 
         if text_to_use:
             self.preview_text.setText(text_to_use[:200])
@@ -1221,8 +1275,8 @@ class MainWindow(QMainWindow):
 
     def next_song_line(self):
         st = self.current_style()
-        if st and st.name in self.doc.dialogues_by_style:
-            style_lines = self.doc.dialogues_by_style[st.name]
+        if st and st.name in self.project.doc.dialogues_by_style:
+            style_lines = self.project.doc.dialogues_by_style[st.name]
             if style_lines:
                 current_idx = self.style_line_idx.get(st.name, 0)
                 self.style_line_idx[st.name] = (current_idx + 1) % len(style_lines)
@@ -1235,6 +1289,9 @@ class MainWindow(QMainWindow):
             return
         self.preview.set_bg_color(chosen)
         self.bg_hex.setText(self.format_bg_hex(chosen))
+        if self.project.doc:
+            self.project.doc.bg_color = self.format_bg_hex(chosen)
+            self.project.commit_change()
 
     def on_bg_hex_changed(self):
         t = self.bg_hex.text().strip()
@@ -1248,6 +1305,9 @@ class MainWindow(QMainWindow):
             return
         self.preview.set_bg_color(c)
         self.bg_hex.setText(self.format_bg_hex(c))
+        if self.project.doc:
+            self.project.doc.bg_color = self.format_bg_hex(c)
+            self.project.commit_change()
 
     def on_k_changed(self, v: int):
         self.k_lbl.setText(f"K: {v}%")
@@ -1353,6 +1413,7 @@ class MainWindow(QMainWindow):
         if "shadow_steps" in preset:
             self.shadow_steps.setValue(preset["shadow_steps"])
 
+        self.project.commit_change()
         self.on_style_selected(self.styles_list.currentRow())
         self.preview.update()
 
