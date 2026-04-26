@@ -2,6 +2,12 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.0] - 2026-04-25
+
+### Added
+- **Video Backgrounds:** Added a video background system to the application. It's not a renderer and it doesn't use `FFMPEG` so you can't save the final project with the video, but you can use it to preview your lyrics with the video in the editor for color matching purposes. You can disable the video and go back to color/hex backgrounds anytime.
+- **Video Controls:** Added a video scrub and playback controls to the application.
+
 ## [1.13.1] - 2026-04-25
 
 ### Added

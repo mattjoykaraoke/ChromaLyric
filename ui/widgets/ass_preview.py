@@ -1,8 +1,9 @@
 import math
 from typing import Optional
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QImage
 from PySide6.QtWidgets import QSizePolicy, QWidget
+from PySide6.QtMultimedia import QVideoSink, QVideoFrame
 
 from core.ass_parser import AssStyle, style_get_color, style_get_int
 from core.colors import ass_alpha_to_qt
@@ -25,6 +26,22 @@ class AssPreviewWidget(QWidget):
         self.shadow_angle = 45
         self.shadow_3d = False
         self.shadow_steps = 10
+
+        self.video_sink = QVideoSink(self)
+        self.video_sink.videoFrameChanged.connect(self.on_video_frame)
+        self.current_video_frame: Optional[QImage] = None
+        self.video_enabled = True
+
+    def set_video_enabled(self, enabled: bool):
+        self.video_enabled = enabled
+        self.update()
+
+    def on_video_frame(self, frame: QVideoFrame):
+        if frame.isValid():
+            self.current_video_frame = frame.toImage()
+        else:
+            self.current_video_frame = None
+        self.update()
 
     def set_style(self, style: Optional[AssStyle]):
         self.ass_style = style
@@ -51,7 +68,19 @@ class AssPreviewWidget(QWidget):
         p.setRenderHints(
             QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing
         )
-        p.fillRect(self.rect(), self.bg_color)
+        
+        drawn_video = False
+        if self.video_enabled and self.current_video_frame and not self.current_video_frame.isNull():
+            scaled_bg = self.current_video_frame.scaled(
+                self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation
+            )
+            x_offset = (self.width() - scaled_bg.width()) // 2
+            y_offset = (self.height() - scaled_bg.height()) // 2
+            p.drawImage(x_offset, y_offset, scaled_bg)
+            drawn_video = True
+            
+        if not drawn_video:
+            p.fillRect(self.rect(), self.bg_color)
 
         if not self.ass_style:
             p.end()

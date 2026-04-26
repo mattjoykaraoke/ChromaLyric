@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 from core.ass_parser import AssDoc, AssStyle, style_get_color, style_get_int, style_set_color
 from core.colors import nearest_color_name
@@ -219,10 +220,52 @@ class MainWindow(QMainWindow):
         ctrl_row3.addWidget(self.k_lbl)
         ctrl_row3.addWidget(self.k_slider, 1)
 
+        # Media Player
+        self.media_player = QMediaPlayer()
+        self.audio_output = QAudioOutput()
+        self.media_player.setAudioOutput(self.audio_output)
+        self.media_player.setVideoSink(self.preview.video_sink)
+        self.video_duration = 0
+
+        self.load_vid_btn = QPushButton("Load Video…")
+        self.load_vid_btn.clicked.connect(self.load_video)
+
+        self.play_vid_btn = QPushButton("▶")
+        self.play_vid_btn.setFixedWidth(30)
+        self.play_vid_btn.setEnabled(False)
+        self.play_vid_btn.clicked.connect(self.toggle_video_playback)
+
+        self.vid_scrub = QSlider(Qt.Orientation.Horizontal)
+        self.vid_scrub.setEnabled(False)
+        self.vid_scrub.sliderMoved.connect(self.scrub_video)
+
+        self.mute_vid_btn = QPushButton("🔊")
+        self.mute_vid_btn.setFixedWidth(30)
+        self.mute_vid_btn.setEnabled(False)
+        self.mute_vid_btn.clicked.connect(self.toggle_video_mute)
+
+        self.disable_vid_btn = QPushButton("✖")
+        self.disable_vid_btn.setFixedWidth(30)
+        self.disable_vid_btn.setToolTip("Remove Video Background")
+        self.disable_vid_btn.setEnabled(False)
+        self.disable_vid_btn.clicked.connect(self.disable_video)
+
+        self.media_player.positionChanged.connect(self.on_video_position_changed)
+        self.media_player.durationChanged.connect(self.on_video_duration_changed)
+
+        ctrl_row_vid = QHBoxLayout()
+        ctrl_row_vid.addWidget(QLabel("Video:"))
+        ctrl_row_vid.addWidget(self.load_vid_btn)
+        ctrl_row_vid.addWidget(self.play_vid_btn)
+        ctrl_row_vid.addWidget(self.vid_scrub, 1)
+        ctrl_row_vid.addWidget(self.mute_vid_btn)
+        ctrl_row_vid.addWidget(self.disable_vid_btn)
+
         preview_box = QGroupBox("Preview")
         pv_layout = QVBoxLayout()
         pv_layout.addLayout(ctrl_row1)
         pv_layout.addLayout(ctrl_row2)
+        pv_layout.addLayout(ctrl_row_vid)
         pv_layout.addLayout(ctrl_row3)
         pv_layout.addWidget(self.preview)
         preview_box.setLayout(pv_layout)
@@ -521,6 +564,54 @@ class MainWindow(QMainWindow):
         if c.alpha() == 255:
             return c.name(QColor.NameFormat.HexRgb).upper()
         return c.name(QColor.NameFormat.HexArgb).upper()
+
+    # ---- Video Player Logic ----
+    def load_video(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mkv *.mov)")
+        if path:
+            self.media_player.setSource(QUrl.fromLocalFile(path))
+            self.preview.set_video_enabled(True)
+            self.play_vid_btn.setEnabled(True)
+            self.vid_scrub.setEnabled(True)
+            self.mute_vid_btn.setEnabled(True)
+            self.disable_vid_btn.setEnabled(True)
+            self.media_player.play()
+            self.play_vid_btn.setText("⏸")
+
+    def toggle_video_playback(self):
+        if self.media_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.media_player.pause()
+            self.play_vid_btn.setText("▶")
+        else:
+            self.media_player.play()
+            self.play_vid_btn.setText("⏸")
+
+    def toggle_video_mute(self):
+        muted = not self.audio_output.isMuted()
+        self.audio_output.setMuted(muted)
+        self.mute_vid_btn.setText("🔇" if muted else "🔊")
+
+    def disable_video(self):
+        self.media_player.stop()
+        self.media_player.setSource(QUrl())
+        self.preview.set_video_enabled(False)
+        self.play_vid_btn.setEnabled(False)
+        self.play_vid_btn.setText("▶")
+        self.vid_scrub.setEnabled(False)
+        self.vid_scrub.setValue(0)
+        self.mute_vid_btn.setEnabled(False)
+        self.disable_vid_btn.setEnabled(False)
+
+    def on_video_duration_changed(self, duration: int):
+        self.video_duration = duration
+        self.vid_scrub.setRange(0, duration)
+
+    def on_video_position_changed(self, position: int):
+        if not self.vid_scrub.isSliderDown():
+            self.vid_scrub.setValue(position)
+
+    def scrub_video(self, position: int):
+        self.media_player.setPosition(position)
 
     # ---- Update Checker Logic ----
 
