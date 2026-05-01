@@ -4,7 +4,7 @@ import random
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import Qt, QSettings, QTimer
 from PySide6.QtGui import QColor, QIcon, QPalette, QImage
 from PySide6.QtWidgets import QApplication
 
@@ -88,6 +88,11 @@ def run_cli_mode(args):
                         style_set_color(st, "OutlineColour", (*colors[2], 0))
                     if len(colors) >= 4:
                         style_set_color(st, "BackColour", (*colors[3], 0))
+                
+                # Save session theme to QSettings
+                settings = QSettings("MattJoy", "ChromaLyric")
+                settings.setValue("session_theme_image", args.extract_theme)
+                settings.setValue("session_theme_palette", json.dumps(colors))
         else:
             print("Failed to load image for extraction.")
 
@@ -130,6 +135,7 @@ def main():
     parser.add_argument("--shadow-layers", type=int, help="Number of 3D shadow layers (1-15)")
     parser.add_argument("--pseudo-3d", type=lambda x: (str(x).lower() in ['true', '1', 'yes']), help="Enable Pseudo-3D effect (true/false)")
     parser.add_argument("--out", type=str, help="Output file path")
+    parser.add_argument("--gui", action="store_true", help="Open GUI after CLI operations")
 
     args, unknown = parser.parse_known_args()
 
@@ -140,7 +146,8 @@ def main():
             print("ERROR: Must provide an ASS file in --cli mode.")
             sys.exit(1)
         run_cli_mode(args)
-        return
+        if not args.gui:
+            return
 
     app.setStyle("Fusion")
     accent_color = get_windows_accent_color()
@@ -170,7 +177,10 @@ def main():
         win.load_ass(args.file)
 
     if args.extract_theme:
-        win.extract_theme_from_path(args.extract_theme)
+        # Use a singleShot timer to ensure the window is rendered before we open the picker
+        # this helps with image scaling and layout.
+        abs_theme_path = str(Path(args.extract_theme).absolute())
+        QTimer.singleShot(100, lambda: win.extract_theme_from_path(abs_theme_path))
 
     win.show()
     sys.exit(app.exec())

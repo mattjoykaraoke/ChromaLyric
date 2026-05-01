@@ -39,9 +39,13 @@ class ImageDropper(QLabel):
     def update_image(self):
         if self.source_image is None or self.source_image.isNull():
             return
+        
+        w = max(100, self.width())
+        h = max(100, self.height())
+        
         self.scaled_image = self.source_image.scaled(
-            self.width(),
-            self.height(),
+            w,
+            h,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
@@ -216,12 +220,13 @@ class ChromaPickerWindow(QDialog):
         if path:
             self.load_image_path(path)
 
-    def load_image_path(self, path: str):
-        """Programmatically load an image and extract colors."""
+    def load_image_path(self, path: str, auto_extract: bool = False):
+        """Programmatically load an image and optionally extract colors."""
         if Path(path).exists():
             self.dropper.load_image(path)
             self.extract_btn.setEnabled(True)
-            self.extract_palette_from_image()
+            if auto_extract:
+                self.extract_palette_from_image()
 
     def add_color_to_list(self, color: QColor):
         item = QListWidgetItem(self.color_list)
@@ -256,8 +261,8 @@ class ChromaPickerWindow(QDialog):
     def extract_palette_from_image(self):
         if not self.dropper.source_image or self.dropper.source_image.isNull():
             return
-            
-        self.extract_btn.setEnabled(False)
+        
+        # Don't disable the button, just proceed with extraction
         
         img = self.dropper.source_image.scaled(15, 15)
         colors = []
@@ -278,3 +283,12 @@ class ChromaPickerWindow(QDialog):
         # Insert them in reverse order so they appear top-to-bottom as extracted
         for r, g, b in reversed(colors):
             self.add_color_to_list(QColor(r, g, b))
+
+    def set_palette(self, colors: list):
+        """Set the palette from a list of QColor or (r,g,b) tuples."""
+        self.color_list.clear()
+        for c in reversed(colors):
+            if isinstance(c, QColor):
+                self.add_color_to_list(c)
+            elif isinstance(c, (list, tuple)) and len(c) >= 3:
+                self.add_color_to_list(QColor(c[0], c[1], c[2]))
