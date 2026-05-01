@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.1] - 2026-04-30
+
+### Added
+- **CLI Mode Enhancement**: Improved handling of color extraction from images and added `--gui` flag to automatically open the GUI after extraction to eliminate issues with losing the ChromaPicker picture passthrough.
+
 ## [1.14.0] - 2026-04-25
 
 ### Added
