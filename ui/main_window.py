@@ -1171,6 +1171,50 @@ class MainWindow(QMainWindow):
         self.picker.raise_()
         self.picker.activateWindow()
 
+    def extract_theme_from_path(self, path: str):
+        """Automatically extract theme from an image and apply to all styles."""
+        if not Path(path).exists():
+            return
+
+        img = QImage(path)
+        if img.isNull():
+            return
+
+        # Extract colors (similar logic to ChromaPicker but simplified)
+        img = img.scaled(15, 15)
+        colors = []
+        for x in range(img.width()):
+            for y in range(img.height()):
+                c = img.pixelColor(x, y)
+                r, g, b = c.red(), c.green(), c.blue()
+                if not any((r-er)**2 + (g-eg)**2 + (b-eb)**2 < 4000 for er, eg, eb in colors):
+                    colors.append((r, g, b))
+                if len(colors) >= 4:
+                    break
+            if len(colors) >= 4:
+                break
+
+        if len(colors) < 1:
+            return
+
+        # Apply to styles
+        if self.project.doc:
+            for st in self.project.doc.styles:
+                style_set_color(st, "PrimaryColour", (*colors[0], 0))
+                if len(colors) >= 2:
+                    style_set_color(st, "SecondaryColour", (*colors[1], 0))
+                if len(colors) >= 3:
+                    style_set_color(st, "OutlineColour", (*colors[2], 0))
+                if len(colors) >= 4:
+                    style_set_color(st, "BackColour", (*colors[3], 0))
+            
+            self.project.commit_change()
+            self._refresh_ui_after_state_change()
+
+        # Load into ChromaPicker
+        self.open_chroma_picker()
+        self.picker.load_image_path(path)
+
     def receive_chromapicker_color(self, target: str, color: QColor):
         if target == "Background":
             self.preview.set_bg_color(color)
@@ -1182,19 +1226,8 @@ class MainWindow(QMainWindow):
 
         st = self.current_style()
         if not st:
-            msg_box = QMessageBox(self)
-            msg_box.setWindowTitle("No Style Loaded")
-            msg_box.setText("Please load an .ass file first!")
-            msg_box.setIcon(QMessageBox.Icon.Warning)
-
-            load_btn = msg_box.addButton(
-                "Load an .ass file", QMessageBox.ButtonRole.ActionRole
-            )
-            cancel_btn = msg_box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-            msg_box.exec()
-
-            if msg_box.clickedButton() == load_btn:
-                self.drop.open_file_dialog()
+            # If no style is loaded, we can't apply style colors.
+            # But the Background case above works even without a style selected.
             return
 
         current = style_get_color(st, target) or (255, 255, 255, 0)

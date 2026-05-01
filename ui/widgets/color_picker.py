@@ -214,8 +214,14 @@ class ChromaPickerWindow(QDialog):
             self, "Open Image", "", "Images (*.png *.jpg *.jpeg)"
         )
         if path:
+            self.load_image_path(path)
+
+    def load_image_path(self, path: str):
+        """Programmatically load an image and extract colors."""
+        if Path(path).exists():
             self.dropper.load_image(path)
             self.extract_btn.setEnabled(True)
+            self.extract_palette_from_image()
 
     def add_color_to_list(self, color: QColor):
         item = QListWidgetItem(self.color_list)

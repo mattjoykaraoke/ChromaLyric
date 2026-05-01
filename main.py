@@ -82,9 +82,12 @@ def run_cli_mode(args):
             if len(colors) >= 2:
                 for st in project.doc.styles:
                     style_set_color(st, "PrimaryColour", (*colors[0], 0))
-                    style_set_color(st, "SecondaryColour", (*colors[1], 0))
+                    if len(colors) >= 2:
+                        style_set_color(st, "SecondaryColour", (*colors[1], 0))
                     if len(colors) >= 3:
-                        style_set_color(st, "BackColour", (*colors[2], 0))
+                        style_set_color(st, "OutlineColour", (*colors[2], 0))
+                    if len(colors) >= 4:
+                        style_set_color(st, "BackColour", (*colors[3], 0))
         else:
             print("Failed to load image for extraction.")
 
@@ -165,6 +168,9 @@ def main():
 
     if args.file and Path(args.file).exists() and args.file.lower().endswith(".ass"):
         win.load_ass(args.file)
+
+    if args.extract_theme:
+        win.extract_theme_from_path(args.extract_theme)
 
     win.show()
     sys.exit(app.exec())

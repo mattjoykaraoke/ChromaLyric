@@ -31,7 +31,9 @@ def style_get_color(style: AssStyle, key: str) -> Optional[Tuple[int, int, int, 
 
 def style_set_color(style: AssStyle, key: str, rgba: Tuple[int, int, int, int]) -> None:
     if key not in style.fields:
-        raise KeyError(f"Style format does not include '{key}'.")
+        # If the style doesn't have this field in its format, we just skip it
+        # rather than crashing the UI.
+        return
     r, g, b, a = rgba
     style.fields[key] = format_ass_color(r, g, b, a)
 
