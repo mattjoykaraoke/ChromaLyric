@@ -137,7 +137,6 @@ class MainWindow(QMainWindow):
         self.presets = []
         self.load_presets()
         self.load_custom_colors()
-        self.load_session_theme()
 
         left.addStretch(1)
         left.addWidget(self.about_btn, alignment=Qt.AlignmentFlag.AlignLeft)
@@ -1212,10 +1211,6 @@ class MainWindow(QMainWindow):
             self.project.commit_change()
             self._refresh_ui_after_state_change()
 
-        # Save to session
-        self.settings.setValue("session_theme_image", path)
-        self.settings.setValue("session_theme_palette", json.dumps(colors))
-
         # Load into ChromaPicker
         self.open_chroma_picker()
         self.picker.load_image_path(path, auto_extract=True)
@@ -1660,27 +1655,6 @@ class MainWindow(QMainWindow):
             color = QColorDialog.customColor(i)
             custom_colors.append(color.name())
         self.settings.setValue("custom_colors", custom_colors)
-
-    def load_session_theme(self):
-        """Restore the last extracted theme if it exists."""
-        img_path = self.settings.value("session_theme_image")
-        palette_data = self.settings.value("session_theme_palette")
-        
-        if img_path or palette_data:
-            if not self.picker:
-                self.picker = ChromaPickerWindow(self)
-                self.picker.colorTransferred.connect(self.receive_chromapicker_color)
-            
-            if img_path and Path(img_path).exists():
-                self.picker.dropper.load_image(img_path)
-                self.picker.extract_btn.setEnabled(True)
-            
-            if palette_data:
-                try:
-                    colors = json.loads(palette_data)
-                    self.picker.set_palette(colors)
-                except:
-                    pass
 
     def dropEvent(self, event):
         for u in event.mimeData().urls():

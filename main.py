@@ -88,11 +88,6 @@ def run_cli_mode(args):
                         style_set_color(st, "OutlineColour", (*colors[2], 0))
                     if len(colors) >= 4:
                         style_set_color(st, "BackColour", (*colors[3], 0))
-                
-                # Save session theme to QSettings
-                settings = QSettings("MattJoy", "ChromaLyric")
-                settings.setValue("session_theme_image", args.extract_theme)
-                settings.setValue("session_theme_palette", json.dumps(colors))
         else:
             print("Failed to load image for extraction.")
 
