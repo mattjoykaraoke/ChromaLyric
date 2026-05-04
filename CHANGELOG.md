@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.2] - 2026-05-03
+
+### Fixed
+- **ChromaPicker**: Fixed an issue where the ChromaPicker was not working properly.
+
 ## [1.14.1] - 2026-04-30
 
 ### Added
