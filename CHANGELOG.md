@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.3] - 2026-05-18
+
+### Fixed
+- **CLI Update**: Fixed an issue where the CLI was not working properly.
+
 ## [1.14.2] - 2026-05-03
 
 ### Fixed

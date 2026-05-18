@@ -27,7 +27,8 @@ ________________________________________________________________________________
 ChromaLyric focuses on style-level editing inside .ass subtitle files:
 
 * 🎨 **Edit Colors:** PrimaryColour, SecondaryColour, OutlineColour, and BackColour
-* 🖥 **Live Preview:** Real-time preview of styles on a chosen color or video background
+* 🖥 **Live Preview:** Real-time preview of styles on a chosen color or video background 
+  * Background colors with transparency (#00000000) will save as a comment to the .ass file for review purposes and upcoming feature to parse BG color to video without a second step.
 * 🎶 **Karaoke Simulation:** Always-on karaoke highlight simulation
 * 🔎 **Adjustable Zoom:** Zoom the preview for fine-tuning
 * 🎚 **Karaoke Progress:** Adjustable swipe progress slider
@@ -103,6 +104,25 @@ It automatically elevates your main text to a higher layer (Z-index) and cleans 
 If you ever need to tweak your lyrics or colors later, simply drop the generated .ass file back into ChromaLyric. The app will instantly detect the ChromaShadow tags, strip the 3D layers out, and leave you with your clean, original lyrics ready for editing!
 
 ![ChromaLyric Screenshot](assets/Screenshot3.png)
+
+__________________________________________________________________________________________
+
+### 💬 Typography Editor
+ChromaLyric now has a built-in typography editor that lets you select any installed typefaces, styles, and set font sizes.
+
+* Simply open the Typography panel with the checkbox to see all the options.
+* Sync All Styles checkboxes makes all text styles in the `.ass` file use the same typeface and/or size settings (does not affect colors).
+* 🛡️ Snap to 100% prevents you from going over the 1080p borders by shrinking the font size to fit if you started out too big. 
+
+![ChromaLyric Screenshot](assets/Screenshot4.png)
+
+__________________________________________________________________________________________
+
+### 📺Video Background Preview
+You can set a video as a background to see if your text looks good against it.
+
+* Select "Load Video..." and you can watch the video play behind your lyrics.
+* Does not render video. I suggest using a transparency option or green screen background for saving.
 
 __________________________________________________________________________________________
 
