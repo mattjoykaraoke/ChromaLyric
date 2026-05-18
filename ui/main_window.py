@@ -39,7 +39,12 @@ from ui.widgets.swatch import SwatchControl
 from workers.github import GitHubUpdateWorker
 
 class MainWindow(QMainWindow):
-    def __init__(self, app_version: str, base_preview_scale: float):
+    def __init__(
+        self,
+        app_version: str,
+        base_preview_scale: float,
+        check_updates: bool = True,
+    ):
         super().__init__()
         self.setWindowTitle("ChromaLyric")
         self.resize(1220, 780)
@@ -53,7 +58,8 @@ class MainWindow(QMainWindow):
         self.settings = QSettings("MattJoy", "ChromaLyric")
         self.base_preview_scale = base_preview_scale
 
-        self.check_for_updates()
+        if check_updates:
+            self.check_for_updates()
 
         # Shortcuts
         self.undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)

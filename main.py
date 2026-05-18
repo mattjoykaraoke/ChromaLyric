@@ -107,9 +107,19 @@ def run_cli_mode(args):
     if args.auto_safe_size:
         print("Running safe size optimization (requires GUI logic)...")
         app = QApplication.instance() or QApplication(sys.argv)
-        win = MainWindow(app_version=APP_VERSION, base_preview_scale=BASE_PREVIEW_SCALE)
+        win = MainWindow(
+            app_version=APP_VERSION,
+            base_preview_scale=BASE_PREVIEW_SCALE,
+            check_updates=False,
+        )
         win.project = project
-        win.snap_to_safe_size()
+        for st in project.doc.styles:
+            win.styles_list.addItem(st.name)
+        if project.doc.styles:
+            win.styles_list.setCurrentRow(0)
+            win.snap_to_safe_size()
+        else:
+            print("No styles found; skipping safe size optimization.")
 
     out_path = args.out
     if not out_path:
