@@ -2,6 +2,7 @@ import json
 import re
 from pathlib import Path
 from typing import List, Tuple
+
 from core.utils import resource_path
 
 # --- Easter Eggs & Creator Colors ---
@@ -22,6 +23,7 @@ CREATOR_COLORS = {
     "Rank Amateur Feelgood Purpureus": "#9500b3",
     "Howling Lone Wolf Blue": "#0033FF",
     "Golden Yellow Rabz": "#FEED19",
+    "Nope Zomp": "39A78E",
     # --- Random Color Names ---
     "The Most Evocative Shade of Deepest Indigo": "#120033",
     # --- Brand Colors ---
@@ -199,9 +201,11 @@ CREATOR_COLORS = {
     "Yellow Green": "#9ACD32",
 }
 
+
 def _hex_to_rgb(h: str) -> Tuple[int, int, int]:
     h = h.strip().lstrip("#")
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
 
 def load_color_names() -> List[Tuple[str, int, int, int]]:
     colors_rgb = []
@@ -223,7 +227,9 @@ def load_color_names() -> List[Tuple[str, int, int, int]]:
 
     return colors_rgb
 
+
 CSS_COLORS_RGB = load_color_names()
+
 
 def nearest_color_name(r: int, g: int, b: int) -> str:
     best_name = "Unknown"
@@ -237,9 +243,11 @@ def nearest_color_name(r: int, g: int, b: int) -> str:
                 break
     return best_name
 
+
 def ass_alpha_to_qt(a_ass: int) -> int:
     a_ass = max(0, min(255, int(a_ass)))
     return 255 - a_ass
+
 
 def parse_ass_color(s: str) -> Tuple[int, int, int, int]:
     t = s.strip().replace(" ", "")
@@ -264,6 +272,7 @@ def parse_ass_color(s: str) -> Tuple[int, int, int, int]:
         )
     return rr, gg, bb, aa
 
+
 def format_ass_color(r: int, g: int, b: int, a: int = 0) -> str:
     r, g, b, a = (
         max(0, min(255, int(r))),
@@ -272,6 +281,7 @@ def format_ass_color(r: int, g: int, b: int, a: int = 0) -> str:
         max(0, min(255, int(a))),
     )
     return f"&H{a:02X}{b:02X}{g:02X}{r:02X}"
+
 
 def strip_ass_tags(text: str) -> str:
     t = re.sub(r"\{[^}]*\}", "", text)
