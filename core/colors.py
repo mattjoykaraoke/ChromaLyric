@@ -6,6 +6,7 @@ from core.utils import resource_path
 
 # --- Easter Eggs & Creator Colors ---
 CREATOR_COLORS = {
+    # --- Creator Colors ---
     "Matt Joy Slate": "#708090",
     "Nox Black": "#000001",
     "It Could Be Teal": "#17CDBE",
@@ -19,8 +20,11 @@ CREATOR_COLORS = {
     "Cloak Gray": "#B6B6B6",
     "Untanned Aghastronaut": "#FFF5E5",
     "Rank Amateur Feelgood Purpureus": "#9500b3",
+    "Howling Lone Wolf Blue": "#0033FF",
+    "Golden Yellow Rabz": "#FEED19",
+    # --- Random Color Names ---
     "The Most Evocative Shade of Deepest Indigo": "#120033",
-    # --- Creator & Brand Colors ---
+    # --- Brand Colors ---
     "Spotify Green": "#1DB954",
     "Twitch Purple": "#9146FF",
     "Discord Blurple": "#5865F2",
@@ -50,6 +54,8 @@ CREATOR_COLORS = {
     "John Deere Green": "#367C2B",
     "Coca-Cola Red": "#F40009",
     "Binghamton University Deep Green": "#005A43",
+    "NYIT Blue": "#002D72",
+    "NYIT Gold": "#F2A900",
     # --- The Standard 140 CSS Colors ---
     "Alice Blue": "#F0F8FF",
     "Antique White": "#FAEBD7",

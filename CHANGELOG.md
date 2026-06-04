@@ -2,6 +2,12 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.4] - 2026-06-03
+
+### Added
+- **Double-Click to Copy**: Double-click the color name/hex code to copy it to your clipboard.
+- **Animation**: Added a brief "Copied!" animation when you double-click a color name/hex code.
+
 ## [1.14.3] - 2026-05-18
 
 ### Fixed
