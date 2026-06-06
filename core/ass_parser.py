@@ -268,6 +268,25 @@ class AssDoc:
                                 single_payload = f"{base_layer},{start},{end},{stylename},{name},{ml},{mr},{mv},{effect},{override}{clean_text}"
                                 final_lines.append(f"{prefix}:{single_payload}")
                                 continue
+                        else:
+                            # If shadow_dist is 0, clean any existing shadow tags from the dialogue text
+                            clean_text = re.sub(r"\\[xy]?shad[0-9.-]+", "", text)
+                            clean_text = clean_text.replace("{}", "")
+                            
+                            # If it was a 3D top layer (indicated by having xshad0/yshad0 and layer > 0), decrement layer back to original
+                            new_layer = layer
+                            if ("\\xshad0" in text or "\\xshad0.00" in text) and ("\\yshad0" in text or "\\yshad0.00" in text):
+                                try:
+                                    layer_int = int(layer)
+                                    if layer_int > 0:
+                                        new_layer = str(layer_int - 1)
+                                except ValueError:
+                                    pass
+                            
+                            if clean_text != text or new_layer != layer:
+                                clean_payload = f"{new_layer},{start},{end},{stylename},{name},{ml},{mr},{mv},{effect},{clean_text}"
+                                final_lines.append(f"{prefix}:{clean_payload}")
+                                continue
 
             final_lines.append(line)
 

@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.5] - 2026-06-06
+
+### Changed
+- **Shadows**: Unchecking the shadow box now removes shadow tags and resets the `.ass` file to what it was before the change.
+
 ## [1.14.4] - 2026-06-03
 
 ### Added

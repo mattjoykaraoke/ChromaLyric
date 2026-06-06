@@ -933,6 +933,28 @@ class MainWindow(QMainWindow):
         self.sw_shadow.setEnabled(checked)
         self.quick_black_btn.setEnabled(checked)
 
+        st = self.current_style()
+        if not st:
+            return
+
+        if not checked:
+            st.fields["Shadow"] = "0"
+            self.shadow_distance.blockSignals(True)
+            self.shadow_distance.setValue(0)
+            self.shadow_distance.blockSignals(False)
+            self.project.commit_change()
+            self.preview.update()
+        else:
+            val = self.shadow_distance.value()
+            if val == 0:
+                val = 1
+                self.shadow_distance.blockSignals(True)
+                self.shadow_distance.setValue(val)
+                self.shadow_distance.blockSignals(False)
+            st.fields["Shadow"] = str(val)
+            self.project.commit_change()
+            self.preview.update()
+
     def on_shadow_distance_changed(self):
         st = self.current_style()
         if not st:
@@ -1091,6 +1113,11 @@ class MainWindow(QMainWindow):
 
             self.font_size_spin.setStyleSheet("")
             self.font_size_spin.setToolTip("")
+
+            self.shadow_group.blockSignals(True)
+            self.shadow_group.setChecked(False)
+            self.shadow_group.blockSignals(False)
+            self.shadow_body.setVisible(False)
             return
 
         self.sw_highlight.set_rgba(style_get_color(st, "PrimaryColour"))
@@ -1101,9 +1128,21 @@ class MainWindow(QMainWindow):
         self.outline_spin.setValue(style_get_int(st, "Outline", 0))
         self.outline_spin.blockSignals(False)
 
+        has_shadow = style_get_int(st, "Shadow", 0) > 0
+        self.shadow_group.blockSignals(True)
+        self.shadow_group.setChecked(has_shadow)
+        self.shadow_group.blockSignals(False)
+        self.shadow_body.setVisible(has_shadow)
+
         self.shadow_distance.blockSignals(True)
         self.shadow_distance.setValue(style_get_int(st, "Shadow", 0))
+        self.shadow_distance.setEnabled(has_shadow)
         self.shadow_distance.blockSignals(False)
+
+        self.shadow_opacity_slider.setEnabled(has_shadow)
+        self.shadow_opacity_spin.setEnabled(has_shadow)
+        self.sw_shadow.setEnabled(has_shadow)
+        self.quick_black_btn.setEnabled(has_shadow)
 
         shadow_rgba = style_get_color(st, "BackColour")
         self.sw_shadow.set_rgba(shadow_rgba)
@@ -1136,7 +1175,7 @@ class MainWindow(QMainWindow):
         self.shadow_3d_cb.setChecked(is_3d)
         self.shadow_3d_cb.blockSignals(False)
         self.preview.shadow_3d = is_3d
-        self.shadow_steps.setEnabled(is_3d)
+        self.shadow_steps.setEnabled(is_3d and has_shadow)
 
         steps = int(st.fields.get("ChromaSteps", 10))
         self.shadow_steps.blockSignals(True)

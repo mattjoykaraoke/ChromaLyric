@@ -24,6 +24,8 @@ CREATOR_COLORS = {
     "Howling Lone Wolf Blue": "#0033FF",
     "Golden Yellow Rabz": "#FEED19",
     "Nope Zomp": "39A78E",
+    "Last Word Green": "#03C04B",
+    "Trashy Hurtful Purple": "#483248",
     # --- Random Color Names ---
     "The Most Evocative Shade of Deepest Indigo": "#120033",
     # --- Brand Colors ---
