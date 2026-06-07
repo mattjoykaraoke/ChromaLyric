@@ -13,7 +13,7 @@ from core.project import KaraokeProject
 from core.ass_parser import style_set_color, style_get_color
 from ui.main_window import MainWindow
 
-APP_VERSION = "v1.14.4"
+APP_VERSION = "v1.14.5"
 BASE_PREVIEW_SCALE = 0.45
 
 def run_cli_mode(args):
