@@ -2,6 +2,12 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.6] - 2026-06-26
+
+### Added
+- **Dirty Save Check**: Warns user if they try to load a new file or exit the program while having unsaved changes. Displays the current file name in the title bar with an asterisk for unsaved changes.
+- **JSON Library Protection**: Warns user if any corruption occured in the library before wiping it clean, giving the user a change to restore from back up.
+
 ## [1.14.5] - 2026-06-06
 
 ### Changed
