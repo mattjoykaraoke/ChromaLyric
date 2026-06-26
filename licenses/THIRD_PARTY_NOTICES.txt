@@ -6,5 +6,10 @@ ChromaLyric includes third-party software components:
    https://code.qt.io/
    https://pyside.org/
 
+2. FFmpeg
+   Licensed under the GNU Lesser General Public License v2.1 or later (LGPL-2.1+).
+   Source code available at:
+   https://ffmpeg.org/
+
 These components are dynamically linked and may be replaced
 in accordance with the terms of the LGPL.

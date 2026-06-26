@@ -1381,7 +1381,7 @@ class MainWindow(QMainWindow):
             + '<a href="https://www.youtube.com/@MattJoyKaraoke" style="color: #708090;">youtube.com/@MattJoyKaraoke</a><br>'
             + '<a href="https://github.com/mattjoykaraoke" style="color: #708090;">github.com/mattjoykaraoke</a><br><br>'
             + f"Version {self.CURRENT_VERSION}.<br>"
-            + "Built with Qt / PySide6 (LGPL v3).<br>"
+            + "Built with Qt / PySide6 (LGPL v3) & FFmpeg (LGPL v2.1+).<br>"
             + "Includes community color names curated by meodai.<br>"
             + "See licenses folder for details."
         )
