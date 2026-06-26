@@ -23,7 +23,7 @@ CREATOR_COLORS = {
     "Rank Amateur Feelgood Purpureus": "#9500b3",
     "Howling Lone Wolf Blue": "#0033FF",
     "Golden Yellow Rabz": "#FEED19",
-    "Nope Zomp": "39A78E",
+    "Nope Zomp": "#39A78E",
     "Last Word Green": "#03C04B",
     "Trashy Hurtful Purple": "#483248",
     # --- Random Color Names ---

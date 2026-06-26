@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)
 
         self.project = KaraokeProject()
+        self.project.on_state_changed = self.update_window_title
         self.style_line_idx: Dict[str, int] = {}
 
         self.picker = None
@@ -571,6 +572,44 @@ class MainWindow(QMainWindow):
             return c.name(QColor.NameFormat.HexRgb).upper()
         return c.name(QColor.NameFormat.HexArgb).upper()
 
+    def update_window_title(self):
+        title = "ChromaLyric"
+        if self.project.current_path:
+            filename = Path(self.project.current_path).name
+            dirty_star = " *" if self.project.is_dirty() else ""
+            title = f"{filename}{dirty_star} - ChromaLyric"
+        self.setWindowTitle(title)
+
+    def confirm_discard_changes(self) -> bool:
+        if not self.project or not self.project.is_dirty():
+            return True
+
+        reply = QMessageBox.question(
+            self,
+            "Unsaved Changes",
+            "You have unsaved changes in your subtitle file. Do you want to save them?",
+            QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save
+        )
+
+        if reply == QMessageBox.StandardButton.Save:
+            if self.project.current_path:
+                self.save_file()
+                return not self.project.is_dirty()
+            else:
+                self.save_as()
+                return not self.project.is_dirty()
+        elif reply == QMessageBox.StandardButton.Discard:
+            return True
+        else: # Cancel
+            return False
+
+    def closeEvent(self, event):
+        if self.confirm_discard_changes():
+            event.accept()
+        else:
+            event.ignore()
+
     # ---- Video Player Logic ----
     def load_video(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mkv *.mov)")
@@ -1025,6 +1064,8 @@ class MainWindow(QMainWindow):
     # ---- File loading ----
 
     def load_ass(self, path: str):
+        if not self.confirm_discard_changes():
+            return
         try:
             self.project.load(path)
             
@@ -1525,13 +1566,30 @@ class MainWindow(QMainWindow):
         saved_data = str(self.settings.value("theme_presets", "[]"))
         try:
             self.presets = json.loads(saved_data)
+            self.presets_corrupted = False
         except json.JSONDecodeError:
             self.presets = []
+            self.presets_corrupted = True
+            QMessageBox.warning(
+                self,
+                "Theme Library Error",
+                "Your Theme Library configuration data appears to be corrupted and could not be loaded.\n\n"
+                "To prevent permanently overwriting and losing your existing themes, saving or updating presets has been disabled. "
+                "You can restore your themes by importing a valid exported Theme Library file (.json)."
+            )
 
         for p in self.presets:
             self.preset_list.addItem(QListWidgetItem(p["name"]))
 
     def save_presets_to_storage(self):
+        if getattr(self, "presets_corrupted", False):
+            QMessageBox.critical(
+                self,
+                "Error",
+                "Saving is disabled because your Theme Library data is corrupted. "
+                "Saving new presets would permanently overwrite your existing themes."
+            )
+            return
         self.settings.setValue("theme_presets", json.dumps(self.presets))
 
     def save_new_preset(self):
@@ -1650,6 +1708,18 @@ class MainWindow(QMainWindow):
                 )
 
     def import_presets(self):
+        if getattr(self, "presets_corrupted", False):
+            reply = QMessageBox.question(
+                self,
+                "Overwrite Corrupted Library?",
+                "Your Theme Library is currently corrupted. Importing a theme library will reset the library and overwrite the corrupted data.\n\n"
+                "Do you want to proceed?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
         in_path, _ = QFileDialog.getOpenFileName(
             self, "Import Theme Library", "", "JSON Files (*.json)"
         )
@@ -1661,6 +1731,11 @@ class MainWindow(QMainWindow):
                 if isinstance(imported_data, list) and all(
                     "name" in item for item in imported_data
                 ):
+                    if getattr(self, "presets_corrupted", False):
+                        # Reset corrupted state on successful validation of imported backup
+                        self.presets = []
+                        self.presets_corrupted = False
+
                     self.presets.extend(imported_data)
                     self.save_presets_to_storage()
                     self.load_presets()

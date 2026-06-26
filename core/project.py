@@ -9,6 +9,8 @@ class KaraokeProject:
         
         self.undo_stack: List[Tuple[List[AssStyle], Optional[str]]] = []
         self.redo_stack: List[Tuple[List[AssStyle], Optional[str]]] = []
+        self.last_saved_undo_index: int = 0
+        self.on_state_changed = None
         
     def load(self, path: str):
         self.doc = AssDoc.load(path)
@@ -16,6 +18,9 @@ class KaraokeProject:
         self.undo_stack.clear()
         self.redo_stack.clear()
         self._push_state()
+        self.last_saved_undo_index = len(self.undo_stack)
+        if self.on_state_changed:
+            self.on_state_changed()
         
     def _push_state(self):
         if not self.doc:
@@ -23,6 +28,8 @@ class KaraokeProject:
         state = (copy.deepcopy(self.doc.styles), self.doc.bg_color)
         self.undo_stack.append(state)
         self.redo_stack.clear()
+        if self.on_state_changed:
+            self.on_state_changed()
         
     def commit_change(self):
         self._push_state()
@@ -34,6 +41,8 @@ class KaraokeProject:
             if self.doc:
                 self.doc.styles = copy.deepcopy(state[0])
                 self.doc.bg_color = state[1]
+            if self.on_state_changed:
+                self.on_state_changed()
             return True
         return False
             
@@ -44,9 +53,20 @@ class KaraokeProject:
             if self.doc:
                 self.doc.styles = copy.deepcopy(state[0])
                 self.doc.bg_color = state[1]
+            if self.on_state_changed:
+                self.on_state_changed()
             return True
         return False
+
+    def is_dirty(self) -> bool:
+        if not self.doc:
+            return False
+        return len(self.undo_stack) != self.last_saved_undo_index
 
     def save(self, out_path: str):
         if self.doc:
             self.doc.save_as(out_path, bg_color_hex=self.doc.bg_color)
+            self.current_path = out_path
+            self.last_saved_undo_index = len(self.undo_stack)
+            if self.on_state_changed:
+                self.on_state_changed()
