@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 from core.ass_parser import AssDoc, AssStyle, style_get_color, style_get_int, style_set_color
-from core.colors import nearest_color_name
+from core.colors import nearest_color_name, extract_palette_from_qimage
 from core.utils import resource_path
 from core.project import KaraokeProject
 from ui.widgets.ass_preview import AssPreviewWidget
@@ -1258,7 +1258,7 @@ class MainWindow(QMainWindow):
         self.picker.activateWindow()
 
     def extract_theme_from_path(self, path: str):
-        """Automatically extract theme from an image and apply to all styles."""
+        """Automatically extract theme from an image and apply to all styles and background."""
         if not Path(path).exists():
             return
 
@@ -1266,24 +1266,11 @@ class MainWindow(QMainWindow):
         if img.isNull():
             return
 
-        # Extract colors (similar logic to ChromaPicker but simplified)
-        img = img.scaled(15, 15)
-        colors = []
-        for x in range(img.width()):
-            for y in range(img.height()):
-                c = img.pixelColor(x, y)
-                r, g, b = c.red(), c.green(), c.blue()
-                if not any((r-er)**2 + (g-eg)**2 + (b-eb)**2 < 4000 for er, eg, eb in colors):
-                    colors.append((r, g, b))
-                if len(colors) >= 4:
-                    break
-            if len(colors) >= 4:
-                break
-
-        if len(colors) < 1:
+        colors = extract_palette_from_qimage(img, max_colors=6)
+        if not colors:
             return
 
-        # Apply to styles
+        # Apply to styles and background
         if self.project.doc:
             for st in self.project.doc.styles:
                 style_set_color(st, "PrimaryColour", (*colors[0], 0))
@@ -1293,6 +1280,9 @@ class MainWindow(QMainWindow):
                     style_set_color(st, "OutlineColour", (*colors[2], 0))
                 if len(colors) >= 4:
                     style_set_color(st, "BackColour", (*colors[3], 0))
+            if len(colors) >= 5:
+                bg_col = QColor(colors[4][0], colors[4][1], colors[4][2])
+                self.project.doc.bg_color = self.format_bg_hex(bg_col)
             
             self.project.commit_change()
             self._refresh_ui_after_state_change()

@@ -2,6 +2,11 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.7] - 2026-08-19
+
+### Changed
+- **Background Extraction**: Added extract background colors from images in the CLI options. 
+
 ## [1.14.6] - 2026-06-26
 
 ### Added

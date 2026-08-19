@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from core.colors import extract_palette_from_qimage
 
 class ImageDropper(QLabel):
     colorPicked = Signal(QColor)
@@ -262,23 +263,7 @@ class ChromaPickerWindow(QDialog):
         if not self.dropper.source_image or self.dropper.source_image.isNull():
             return
         
-        # Don't disable the button, just proceed with extraction
-        
-        img = self.dropper.source_image.scaled(15, 15)
-        colors = []
-        for x in range(img.width()):
-            for y in range(img.height()):
-                c = img.pixelColor(x, y)
-                r, g, b = c.red(), c.green(), c.blue()
-                
-                # Minimum distance formula to ensure distinct colors
-                if not any((r-er)**2 + (g-eg)**2 + (b-eb)**2 < 4000 for er, eg, eb in colors):
-                    colors.append((r, g, b))
-                
-                if len(colors) >= 6:
-                    break
-            if len(colors) >= 6:
-                break
+        colors = extract_palette_from_qimage(self.dropper.source_image, max_colors=6)
                 
         # Insert them in reverse order so they appear top-to-bottom as extracted
         for r, g, b in reversed(colors):

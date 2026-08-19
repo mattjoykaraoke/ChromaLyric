@@ -11,9 +11,10 @@ from PySide6.QtWidgets import QApplication
 from core.utils import get_windows_accent_color, resource_path
 from core.project import KaraokeProject
 from core.ass_parser import style_set_color, style_get_color
+from core.colors import extract_palette_from_qimage
 from ui.main_window import MainWindow
 
-APP_VERSION = "v1.14.6"
+APP_VERSION = "v1.14.7"
 BASE_PREVIEW_SCALE = 0.45
 
 def run_cli_mode(args):
@@ -70,16 +71,8 @@ def run_cli_mode(args):
         print(f"Extracting theme from {args.extract_theme}...")
         img = QImage(args.extract_theme)
         if not img.isNull():
-            img = img.scaled(10, 10)
-            colors = []
-            for x in range(10):
-                for y in range(10):
-                    c = img.pixelColor(x, y)
-                    r, g, b = c.red(), c.green(), c.blue()
-                    if not any((r-er)**2 + (g-eg)**2 + (b-eb)**2 < 4000 for er, eg, eb in colors):
-                        colors.append((r, g, b))
-            
-            if len(colors) >= 2:
+            colors = extract_palette_from_qimage(img, max_colors=6)
+            if colors:
                 for st in project.doc.styles:
                     style_set_color(st, "PrimaryColour", (*colors[0], 0))
                     if len(colors) >= 2:
@@ -88,6 +81,10 @@ def run_cli_mode(args):
                         style_set_color(st, "OutlineColour", (*colors[2], 0))
                     if len(colors) >= 4:
                         style_set_color(st, "BackColour", (*colors[3], 0))
+                if len(colors) >= 5:
+                    project.doc.bg_color = f"#{colors[4][0]:02X}{colors[4][1]:02X}{colors[4][2]:02X}"
+            else:
+                print("No distinct colors found in image.")
         else:
             print("Failed to load image for extraction.")
 

@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import List, Tuple
 
+from PySide6.QtGui import QImage
 from core.utils import resource_path
 
 # --- Easter Eggs & Creator Colors ---
@@ -289,3 +290,32 @@ def strip_ass_tags(text: str) -> str:
     t = re.sub(r"\{[^}]*\}", "", text)
     t = t.replace("\\N", "\n").replace("\\n", "\n").replace("\\h", " ")
     return t.strip()
+
+
+def extract_palette_from_qimage(
+    img: QImage,
+    max_colors: int = 6,
+    min_dist_sq: int = 4000,
+    scale_size: int = 15,
+) -> List[Tuple[int, int, int]]:
+    """Extract distinct RGB colors from a QImage."""
+    if img is None or img.isNull():
+        return []
+
+    scaled = img.scaled(scale_size, scale_size)
+    colors: List[Tuple[int, int, int]] = []
+    for x in range(scaled.width()):
+        for y in range(scaled.height()):
+            c = scaled.pixelColor(x, y)
+            r, g, b = c.red(), c.green(), c.blue()
+            if not any(
+                (r - er) ** 2 + (g - eg) ** 2 + (b - eb) ** 2 < min_dist_sq
+                for er, eg, eb in colors
+            ):
+                colors.append((r, g, b))
+            if len(colors) >= max_colors:
+                break
+        if len(colors) >= max_colors:
+            break
+    return colors
+
