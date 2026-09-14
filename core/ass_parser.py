@@ -1,3 +1,4 @@
+import json
 import math
 import re
 from dataclasses import dataclass
@@ -55,13 +56,36 @@ class AssDoc:
 
         lines = []
         bg_color = None
+        style_meta_json = None
+        detected_3d_styles = set()
+        shadow_layers_by_event = {}
+
         for l in raw_lines:
             if l.startswith("Dialogue:"):
                 parts = l.split(":", 1)[1].split(",", 9)
-                if len(parts) == 10 and parts[8].strip().startswith("ChromaShadow"):
-                    continue
+                if len(parts) == 10:
+                    layer, start, end, stylename, name, ml, mr, mv, effect, d_text = parts
+                    stylename = stylename.strip()
+                    if effect.strip().startswith("ChromaShadow"):
+                        detected_3d_styles.add(stylename)
+                        key = (start.strip(), end.strip(), stylename)
+                        shadow_layers_by_event[key] = shadow_layers_by_event.get(key, 0) + 1
+                        continue
+                    if ("\\xshad0" in d_text or "\\xshad0.00" in d_text) and ("\\yshad0" in d_text or "\\yshad0.00" in d_text):
+                        detected_3d_styles.add(stylename)
+                        clean_d_text = re.sub(r"\{\\xshad0(?:\.00)?\\yshad0(?:\.00)?\}", "", d_text)
+                        try:
+                            l_int = int(layer)
+                            if l_int > 0:
+                                layer = str(l_int - 1)
+                        except ValueError:
+                            pass
+                        prefix = l.split(":", 1)[0]
+                        l = f"{prefix}:{layer},{start},{end},{stylename},{name},{ml},{mr},{mv},{effect},{clean_d_text}"
             elif l.startswith("; kbputils_background_1.0 color:"):
                 bg_color = l.split("color:", 1)[1].strip()
+            elif l.startswith("; chromalyric_style_meta:"):
+                style_meta_json = l.split(":", 1)[1].strip()
             lines.append(l)
 
         section_name = (
@@ -106,6 +130,56 @@ class AssDoc:
             name = fields.get("Name", f"Style@{i}")
             styles.append(AssStyle(name=name, fields=fields))
             style_line_indices.append(i)
+
+        # Restore Chroma properties (Angle, 3D, Steps)
+        meta_dict = {}
+        if style_meta_json:
+            try:
+                meta_dict = json.loads(style_meta_json)
+            except Exception:
+                meta_dict = {}
+
+        for st in styles:
+            if st.name in meta_dict:
+                sm = meta_dict[st.name]
+                if "angle" in sm:
+                    st.fields["ChromaAngle"] = str(sm["angle"])
+                if "is_3d" in sm:
+                    st.fields["Chroma3D"] = "True" if sm["is_3d"] else "False"
+                if "steps" in sm:
+                    st.fields["ChromaSteps"] = str(sm["steps"])
+
+            # Fallback for 3D & steps if not present in metadata
+            if "Chroma3D" not in st.fields and st.name in detected_3d_styles:
+                st.fields["Chroma3D"] = "True"
+                counts = [c for (s, e, sname), c in shadow_layers_by_event.items() if sname == st.name]
+                if counts:
+                    st.fields["ChromaSteps"] = str(max(1, min(15, max(counts))))
+
+            # Fallback for angle from dialogue tags if not present in metadata
+            if "ChromaAngle" not in st.fields:
+                for l in raw_lines:
+                    if l.startswith("Dialogue:"):
+                        d_parts = l.split(":", 1)[1].split(",", 9)
+                        if len(d_parts) == 10 and d_parts[3].strip() == st.name:
+                            d_txt = d_parts[9]
+                            x_m = re.search(r"\\xshad(-?[\d.]+)", d_txt)
+                            y_m = re.search(r"\\yshad(-?[\d.]+)", d_txt)
+                            if x_m and y_m:
+                                try:
+                                    dx = float(x_m.group(1))
+                                    dy = float(y_m.group(1))
+                                    if abs(dx) > 0.001 or abs(dy) > 0.001:
+                                        angle_rad = math.atan2(dy, dx)
+                                        angle_deg = math.degrees(angle_rad) % 360
+                                        for snap in [0, 45, 90, 135, 180, 225, 270, 315, 360]:
+                                            if abs(angle_deg - snap) < 5 or abs(angle_deg - (snap - 360)) < 5:
+                                                angle_deg = snap % 360
+                                                break
+                                        st.fields["ChromaAngle"] = str(int(round(angle_deg)))
+                                        break
+                                except ValueError:
+                                    pass
 
         all_dialogues, by_style, parsed_dialogues = AssDoc._extract_dialogues(lines)
 
@@ -216,7 +290,7 @@ class AssDoc:
         final_lines = []
 
         for line in self.lines:
-            if line.startswith("; kbputils_background_1.0 color:"):
+            if line.startswith("; kbputils_background_1.0 color:") or line.startswith("; chromalyric_"):
                 continue
 
             if line.startswith("Dialogue:"):
@@ -242,6 +316,7 @@ class AssDoc:
                             base_layer = int(layer)
 
                             clean_text = re.sub(r"\\[xy]?shad[0-9.-]+", "", text)
+                            clean_text = clean_text.replace("{}", "")
 
                             if is_3d:
                                 for i in range(steps, 0, -1):
@@ -289,6 +364,36 @@ class AssDoc:
                                 continue
 
             final_lines.append(line)
+
+        # Write ChromaLyric style metadata comment
+        style_meta = {}
+        for st in self.styles:
+            meta = {}
+            try:
+                shadow_dist = float(st.fields.get("Shadow", 0) or 0)
+            except ValueError:
+                shadow_dist = 0
+
+            if "ChromaAngle" in st.fields:
+                try:
+                    meta["angle"] = int(round(float(st.fields["ChromaAngle"])))
+                except ValueError:
+                    pass
+            elif shadow_dist > 0:
+                meta["angle"] = 45
+
+            if "Chroma3D" in st.fields:
+                meta["is_3d"] = st.fields["Chroma3D"] == "True"
+            if "ChromaSteps" in st.fields:
+                try:
+                    meta["steps"] = int(round(float(st.fields["ChromaSteps"])))
+                except ValueError:
+                    pass
+            if meta:
+                style_meta[st.name] = meta
+
+        if style_meta:
+            final_lines.append(f"; chromalyric_style_meta: {json.dumps(style_meta, separators=(',', ':'))}")
 
         if bg_color_hex:
             final_lines.append(f"; kbputils_background_1.0 color: {bg_color_hex}")

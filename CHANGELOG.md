@@ -2,6 +2,12 @@
 
 All notable changes to ChromaLyric will be documented in this file.
 
+## [1.14.8] - 2026-09-13
+
+### Fixed
+- **Metadata Comment Persistence**: Added metadata tags to the `.ass` file to store information about the shadow information so that opening a saved file restores the shadow state.
+- **Metadata Loading & Dialogue Inference**: If shadow was used in an `.ass` file before the implementation of metadata, ChromaLyric will now infer the correct shadow settings.
+
 ## [1.14.7] - 2026-08-19
 
 ### Changed

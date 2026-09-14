@@ -1206,7 +1206,7 @@ class MainWindow(QMainWindow):
             self.shadow_opacity_slider.setValue(0)
             self.shadow_opacity_slider.blockSignals(False)
 
-        angle = int(st.fields.get("ChromaAngle", 45))
+        angle = int(float(st.fields.get("ChromaAngle", 45)))
         self.shadow_angle_picker.angle = angle
         self.shadow_angle_picker.update()
         self.preview.shadow_angle = angle
@@ -1218,7 +1218,7 @@ class MainWindow(QMainWindow):
         self.preview.shadow_3d = is_3d
         self.shadow_steps.setEnabled(is_3d and has_shadow)
 
-        steps = int(st.fields.get("ChromaSteps", 10))
+        steps = int(float(st.fields.get("ChromaSteps", 10)))
         self.shadow_steps.blockSignals(True)
         self.shadow_steps.setValue(steps)
         self.shadow_steps.blockSignals(False)
@@ -1620,14 +1620,17 @@ class MainWindow(QMainWindow):
             st.fields["Shadow"] = str(preset["shadow_dist"])
 
         if "shadow_angle" in preset:
+            st.fields["ChromaAngle"] = str(preset["shadow_angle"])
             self.shadow_angle_picker.angle = preset["shadow_angle"]
             self.shadow_angle_picker.update()
             self.preview.shadow_angle = preset["shadow_angle"]
 
         if "shadow_3d" in preset:
+            st.fields["Chroma3D"] = "True" if preset["shadow_3d"] else "False"
             self.shadow_3d_cb.setChecked(preset["shadow_3d"])
 
         if "shadow_steps" in preset:
+            st.fields["ChromaSteps"] = str(preset["shadow_steps"])
             self.shadow_steps.setValue(preset["shadow_steps"])
 
         self.project.commit_change()

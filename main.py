@@ -14,7 +14,7 @@ from core.ass_parser import style_set_color, style_get_color
 from core.colors import extract_palette_from_qimage
 from ui.main_window import MainWindow
 
-APP_VERSION = "v1.14.7"
+APP_VERSION = "v1.14.8"
 BASE_PREVIEW_SCALE = 0.45
 
 def run_cli_mode(args):
