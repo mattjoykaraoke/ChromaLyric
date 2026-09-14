@@ -101,7 +101,7 @@ It automatically elevates your main text to a higher layer (Z-index) and cleans 
 
 * **Non-Destructive Editing:** Because generating a 15-step 3D effect creates 15 duplicate lines for every lyric, ChromaLyric safely tags these generated background layers with ChromaShadow in the standard ASS Effect column.
 
-If you ever need to tweak your lyrics or colors later, simply drop the generated .ass file back into ChromaLyric. The app will instantly detect the ChromaShadow tags, strip the 3D layers out, and leave you with your clean, original lyrics ready for editing!
+As of v1.14.8, ChromaLyric will preserve the shadow settings when you open an `.ass` file that was previously saved by ChromaLyric rather than strip them out, and it will infer the correct shadow settings for `.ass` files that were created by an older version ChromaLyric. You should still be able to remove effects and modify them as you please but if you are worried about the original `.ass` file or have no way to regenerate one, I suggest you keep a backup copy.
 
 ![ChromaLyric Screenshot](assets/Screenshot3.png)
 
@@ -128,8 +128,6 @@ ________________________________________________________________________________
 
 ### 📂 Supported File Type
 * **.ass** (Advanced SubStation Alpha)
-
-As of 1.10.0 ChromaLyric edits the **Styles** section of the file and Dialogue lines will be duplicated for advanced shadow effects. If you do not have a way to regenerate your `.ass` file and this concerns you, I suggest saving as a new file and not overwriting the original.
 
 __________________________________________________________________________________________
 
